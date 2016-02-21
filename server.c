@@ -148,6 +148,7 @@ int main (int argc, char *argv[])
 		}
 		else
 		{
+			// Taken from here: http://beej.us/guide/bgnet/output/html/multipage/gethostbynameman.html
 			struct hostent *he;
 			struct in_addr ipv4addr;
 			inet_pton(AF_INET, inet_ntoa(addr_remote.sin_addr), &ipv4addr);
