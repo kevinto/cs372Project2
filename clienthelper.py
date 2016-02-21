@@ -100,20 +100,37 @@ def receiveServerMsg(s):
 #		argv: string array of parameters passed into clint.py
 def checkArgs(argv):
 	# Check that the correct number of arguments are sent in
-	if len(argv) != 3:
-		print 'Error: Server Hostname and port number required'
-		return False
+	if len(argv) != 5 and len(argv) != 6:
 
-	port = 0
+		print 'Error: Valid commands can be either of the following:'
+		print 'ftclient <hostname> <server port> <command> <data port>'
+		print 'ftclient <hostname> <server port> <command> <file name> <data port>'
+		return False
+	
+	serverPort = 0
+	dataPort = 0
+		
+	if len(argv) == 5:		
+		dataPort = argv[4]
+
+	if len(argv) == 6:
+		dataPort = argv[5]
+
 	try:
 		# Convert port param into a number
-		port = int(argv[2])
+		serverPort = int(argv[2])
+		dataPortNumber = int(dataPort)
 	except:
-		print 'Error: Port has to be a number'
+		print 'Error: One or both ports are not valid numbers'
 
-	# Check if the port is within an acceptable numeric range
-	if port < 1024 or 65535 < port:
-		print 'Error: Port has to be in the range 1024 to 65525'
+	# Check if the server port is within an acceptable numeric range
+	if serverPort < 1024 or 65535 < serverPort:
+		print 'Error: Server Port has to be in the range 1024 to 65525'
+		return False
+
+	# Check if the data port is within an acceptable numeric range
+	if dataPortNumber < 1024 or 65535 < dataPortNumber:
+		print 'Error: Data Port has to be in the range 1024 to 65525'
 		return False
 
 	return True

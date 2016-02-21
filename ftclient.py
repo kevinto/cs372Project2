@@ -1,7 +1,7 @@
 '''
  Filename: client.py
  Coded by: Kevin To
- Purpose - [CS372 Project 1] - File contains the client code
+ Purpose - [CS372 Project 2] - File contains the ftp client code
            written in python.
 '''
 #!/usr/bin/env python
@@ -15,6 +15,8 @@ import clienthelper
 # Check arguments
 if (not clienthelper.checkArgs(sys.argv)):
 	sys.exit()
+
+sys.exit()
 
 # Setup socket connection
 s = clienthelper.initContact(sys.argv)

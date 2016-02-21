@@ -1,9 +1,10 @@
 /**************************************************************
- * *  Filename: otp_dec_d.c
+ * *  Filename: server.c
  * *  Coded by: Kevin To
- * *  Purpose - Acts as a server to process encyption requests.
+ * *  Purpose - [CS372 Project 2] Acts as a server to process 
+ * *
  * *            Sample command:
- * *              otp_dec_d port 
+ * *              server <port> 
  * *
  * *              port = the port for the client to connect to.
  * *
@@ -39,11 +40,11 @@ int GetTempFD();
 void ReceiveClientFile(int socket, FILE *tempFilePointer);
 void SendFileToClient(int socket, int tempFilePointer);
 void AddNewLineToEndOfFile(FILE *filePointer);
-int GetSizeOfCiphertext(FILE *filePointer);
+int GetSizeOfPlaintext(FILE *filePointer);
 int GetSizeOfKeyText(FILE *filePointer);
-void SaveCipherTextToString(char *cipherTextString, int cipherTextSize, FILE *filePointer);
+void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
 void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer);
-void DecryptText(char *cipherTextString, int cipherTextSize, char *keyTextString, int keyTextSize, char *cipherText);
+void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
 int ReceiveClientHandshake(int socket);
@@ -73,11 +74,10 @@ int main (int argc, char *argv[])
 {
 	if (argc < 2)
 	{
-		printf("usage: otp_dec_d port\n");
+		printf("usage: server <port>\n");
 		exit(1);
 	}
-
-
+	
 	// --------------- Section to setup socket -----------------------
 
 	int sockfd, newsockfd, sin_size, pid;
@@ -94,7 +94,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf("[otp_dec_d] Obtaining socket descriptor successfully.\n"); // For debugging only
+		// printf("[otp_enc_d] Obtaining socket descriptor successfully.\n"); // For debugging only
 	}
 
 	// Fill the client socket address struct
@@ -111,7 +111,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf("[otp_dec_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
+		// printf("[otp_enc_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
 	}
 
 	// Listen to port
@@ -122,7 +122,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf ("[otp_dec_d] Listening the port %d successfully.\n", portNumber); // For debugging only
+		// printf ("[otp_enc_d] Listening the port %d successfully.\n", portNumber); // For debugging only
 	}
 
 	// Set up the signal handler to clean up zombie children
@@ -147,7 +147,7 @@ int main (int argc, char *argv[])
 		}
 		else
 		{
-			// printf("[otp_dec_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
+			// printf("[otp_enc_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
 		}
 
 		// Create child process to handle processing multiple connections
@@ -161,7 +161,7 @@ int main (int argc, char *argv[])
 
 		if (pid == 0)
 		{
-			/* This is the client process */
+			// This is the client process
 			close(sockfd);
 			ProcessConnection(newsockfd);
 			exit(0);
@@ -213,8 +213,8 @@ void ProcessConnection(int socket)
 	strncpy(handshakeReply, "S", 1);
 	SendClientHandshakeResponse(socket, handshakeReply);
 
-	// Receive the ciphertext and key file from the client
-	// Both ciphertext and key are in one file
+	// Receive the plaintext and key file from the client
+	// Both plaintext and key are in one file
 	int receiveTempFilePointer = GetTempFD();
 	FILE *filePointer = fdopen(receiveTempFilePointer, "w+");
 	if (filePointer == 0)
@@ -227,24 +227,24 @@ void ProcessConnection(int socket)
 	}
 	AddNewLineToEndOfFile(filePointer);
 
-	// Get the cipher text from the file and save to a string in order to decrypt it later
-	int cipherTextSize = GetSizeOfCiphertext(filePointer);
-	char *cipherTextString = malloc(cipherTextSize + 1); // Allocates memory for the string taken from the file
-	bzero(cipherTextString, cipherTextSize + 1);
-	SaveCipherTextToString(cipherTextString, cipherTextSize, filePointer);
-	// printf("cipherTextString: %s\n", cipherTextString); // For debug only
+	// Get the plain text from the file and save to a string so we can encrypt it later
+	int plainTextSize = GetSizeOfPlaintext(filePointer);
+	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
+	bzero(plainTextString, plainTextSize + 1);
+	SavePlainTextToString(plainTextString, plainTextSize, filePointer);
+	// printf("plainTextString: %s\n", plainTextString); // For debug only
 
-	// Get the cipher text from the file and save to a string in order to decrypt it later
+	// Get the plain text from the file and save to a string so we can encrypt it later
 	int keyTextSize = GetSizeOfKeyText(filePointer);
 	char *keyTextString = malloc(keyTextSize + 1); // Allocates memory for the string taken from the file
 	bzero(keyTextString, keyTextSize + 1);
 	SaveKeyTextToString(keyTextString, keyTextSize, filePointer);
 	// printf("keyTextString: %s\n", keyTextString);
 
-	// calculate size of the encypted text so we can allocate space for it
-	char *cipherText = malloc(cipherTextSize + 1); // Allocates memory for the cipherText
-	bzero(cipherText, cipherTextSize + 1);
-	DecryptText(cipherTextString, cipherTextSize, keyTextString, keyTextSize, cipherText);
+	// calculate size of the encypted text so we can allocate space for it.
+	char *cipherText = malloc(plainTextSize + 1); // Allocates memory for the cipherText
+	bzero(cipherText, plainTextSize + 1);
+	EncyptText(plainTextString, plainTextSize, keyTextString, keyTextSize, cipherText);
 
 	int resultTempFD = 	GetTempFD();
 	FILE *resultFilePointer = fdopen(resultTempFD, "w+");
@@ -259,15 +259,14 @@ void ProcessConnection(int socket)
 	// SendFileToClient(socket, receiveTempFilePointer);
 	SendFileToClient(socket, resultTempFD);
 
-	// Clean up
-	free(cipherTextString);
+	free(plainTextString);
 	free(keyTextString);
 	free(cipherText);
 	fclose(filePointer);
 	close(receiveTempFilePointer);
 	close(socket);
 
-	// printf("[otp_dec_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
+	// printf("[otp_enc_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
 }
 
 
@@ -291,7 +290,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
 
 	if (send(socket, sendBuffer, 1, 0) < 0)
 	{
-		printf("[otp_dec_d] ERROR: Failed to send client the handshake response.");
+		printf("[otp_enc_d] ERROR: Failed to send client the handshake response.");
 		exit(1);
 	}
 }
@@ -315,7 +314,7 @@ int ReceiveClientHandshake(int socket)
 
 	recv(socket, receiveBuffer, LENGTH, 0);
 
-	if (strcmp(receiveBuffer, "otp_dec") == 0)
+	if (strcmp(receiveBuffer, "otp_enc") == 0)
 	{
 		return 1; // Connection valid
 	}
@@ -327,8 +326,8 @@ int ReceiveClientHandshake(int socket)
 
 /**************************************************************
  * * Entry:
- * *  cipherTextString - the ciphertext string
- * *	cipherTextSize - the ciphertext size 
+ * *  plainTextString - the plaintext string
+ * *	plainTextSize - the plaintext size 
  * *	keyTextString - the key string
  * *	keyTextSize - the key size
  * *	cipherText - the ciper text, returned by ref
@@ -337,42 +336,32 @@ int ReceiveClientHandshake(int socket)
  * *  n/a
  * *
  * * Purpose:
- * * 	Gets the cipher text from the given cipher and key
+ * * 	Gets the cipher text from the given plaintext and key
  * *
  * ***************************************************************/
-void DecryptText(char *cipherTextString, int cipherTextSize, char *keyTextString, int keyTextSize, char *cipherText)
+void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
 {
 	int i;
 	char currEncChar;
 	int currEncCharNumber;
-	int currCipherTextNumber;
+	int currPlainTextNumber;
 	int currKeyTextNumber;
-	for (i = 0; i < cipherTextSize; i++)
+	for (i = 0; i < plainTextSize; i++)
 	{
 		// Get the number mappings
-		currCipherTextNumber = GetCharToNumberMapping(cipherTextString[i]);
+		currPlainTextNumber = GetCharToNumberMapping(plainTextString[i]);
 		currKeyTextNumber = GetCharToNumberMapping(keyTextString[i]);
 
 		// Get the number after encyption
-		currEncCharNumber = (currCipherTextNumber - currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
-		if (currEncCharNumber < 0)
-		{
-			currEncCharNumber += NUMBER_ALLOWED_CHARS;
-		}
-
+		currEncCharNumber = (currPlainTextNumber + currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
 
 		// Get the character from the encryption number
 		currEncChar = GetNumberToCharMapping(currEncCharNumber);
 
 		cipherText[i] = currEncChar;
-
 		// For debugging
-		// printf("current letter : %c\n", cipherTextString[i]);
-		// printf("currCipherTextNumber : %d\n", currCipherTextNumber);
-		// printf("current key: %c\n", keyTextString[i]);
-		// printf("currKeyTextNumber: %d\n", currKeyTextNumber);
-		// printf("currEncCharNumber: %d\n", currEncCharNumber);
-		// printf("cipherText char : %c\n", currEncChar);
+		// printf("current enc number : %d\n", currEncCharNumber);
+		// printf("current character : %c\n", currEncChar);
 	}
 }
 
@@ -492,18 +481,18 @@ void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer
 
 /**************************************************************
  * * Entry:
- * *  cipherTextString - the cipherText string 
- * * 	cipherTextSize	- the size of the cipherText string
- * *	filePointer - the file containing the cipherText string
+ * *  plainTextString - the plaintext string
+ * * 	plainTextSize	- the size of the plaintext string
+ * *	filePointer - the file containing the plaintext string
  * *
  * * Exit:
  * *  n/a
  * *
  * * Purpose:
- * * 	Saves the cipherText from the file into the specified string.
+ * * 	Saves the plaintext from the file into the specified string.
  * *
  * ***************************************************************/
-void SaveCipherTextToString(char *cipherTextString, int cipherTextSize, FILE *filePointer)
+void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer)
 {
 	char readBuffer[LENGTH];
 	int i;
@@ -523,13 +512,13 @@ void SaveCipherTextToString(char *cipherTextString, int cipherTextSize, FILE *fi
 		// Loop through the buffer to count characters
 		for (i = 0; i < LENGTH; i++)
 		{
-			// Exit loop if we reached the end of the cipher text portion of the file
-			if (fileTracker == (cipherTextSize))
+			// Exit loop if we reached the end of the plain text portion of the file
+			if (fileTracker == (plainTextSize))
 			{
 				break;
 			}
 
-			cipherTextString[stringTracker] = readBuffer[i]; // Copy the file contents to the string
+			plainTextString[stringTracker] = readBuffer[i]; // Copy the file contents to the string
 			stringTracker++;
 			fileTracker++;
 		}
@@ -540,14 +529,14 @@ void SaveCipherTextToString(char *cipherTextString, int cipherTextSize, FILE *fi
 /**************************************************************
  * * Entry:
  * *  filePointer - The file pointer to the file containing the 
- * *								cipherText and key, semi-colon delimited.
+ * *								plaintext and key, semi-colon delimited.
  * *
  * * Exit:
  * *  Returns the key size as an int.
  * *
  * * Purpose:
  * * 	Gets the key size from the file containing both the 
- * *	cipherText and key.
+ * *	plaintext and key.
  * *
  * ***************************************************************/
 int GetSizeOfKeyText(FILE *filePointer)
@@ -606,17 +595,17 @@ int GetSizeOfKeyText(FILE *filePointer)
 /**************************************************************
  * * Entry:
  * *  filePointer - The file pointer to the file containing the 
- * *								cipherText and key, semi-colon delimited.
+ * *								plaintext and key, semi-colon delimited.
  * *
  * * Exit:
- * *  Returns the cipherText size as an int.
+ * *  Returns the plaintext size as an int.
  * *
  * * Purpose:
- * * 	Gets the cipherText size from the file containing both the 
- * *	cipherText and key.
+ * * 	Gets the plaintext size from the file containing both the 
+ * *	plaintext and key.
  * *
  * ***************************************************************/
-int GetSizeOfCiphertext(FILE *filePointer)
+int GetSizeOfPlaintext(FILE *filePointer)
 {
 	char readBuffer[LENGTH];
 	int i;
@@ -672,7 +661,7 @@ int GetSizeOfCiphertext(FILE *filePointer)
 void SendFileToClient(int socket, int tempFilePointer)
 {
 	char sendBuffer[LENGTH]; // Send buffer
-	// printf("[otp_dec_d] Sending received file to the Client..."); // For debugging only
+	// printf("[otp_enc_d] Sending received file to the Client..."); // For debugging only
 	if (tempFilePointer == 0)
 	{
 		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
@@ -719,7 +708,7 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer)
 		int bytesWrittenToFile = fwrite(receiveBuffer, sizeof(char), bytesReceived, tempFilePointer);
 		if (bytesWrittenToFile < bytesReceived)
 		{
-			printf("[otp_dec_d] File write failed on server.\n");
+			printf("[otp_enc_d] File write failed on server.\n");
 		}
 		bzero(receiveBuffer, LENGTH);
 		if (bytesReceived == 0 || bytesReceived != 512)

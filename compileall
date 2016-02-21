@@ -1,7 +1,0 @@
-#!/bin/bash
-
-gcc keygen.c -g -std=c99 -D_XOPEN_SOURCE=600 -o keygen
-gcc otp_enc.c -g -std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -o otp_enc 
-gcc otp_enc_d.c -g -std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -o otp_enc_d 
-gcc otp_dec.c -g -std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -o otp_dec 
-gcc otp_dec_d.c -g -std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -o otp_dec_d 
