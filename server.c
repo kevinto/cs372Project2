@@ -1,7 +1,8 @@
 /**************************************************************
  * *  Filename: server.c
  * *  Coded by: Kevin To
- * *  Purpose - [CS372 Project 2] Acts as a server to process 
+ * *  Purpose - [CS372 Project 2] Acts as a server to process FTP 
+ * *			commands.
  * *
  * *            Sample command:
  * *              server <port> 
@@ -122,7 +123,7 @@ int main (int argc, char *argv[])
 	}
 	else
 	{
-		// printf ("[otp_enc_d] Listening the port %d successfully.\n", portNumber); // For debugging only
+		printf ("Server open on %d\n", portNumber);
 	}
 
 	// Set up the signal handler to clean up zombie children
@@ -147,8 +148,16 @@ int main (int argc, char *argv[])
 		}
 		else
 		{
-			// printf("[otp_enc_d] Server has got connected from %s.\n", inet_ntoa(addr_remote.sin_addr)); // For debugging only
+			struct hostent *he;
+			struct in_addr ipv4addr;
+			inet_pton(AF_INET, inet_ntoa(addr_remote.sin_addr), &ipv4addr);
+			he = gethostbyaddr(&ipv4addr, sizeof ipv4addr, AF_INET);
+			printf("Connection from %s\n", he->h_name);
 		}
+
+		// Remove THIS
+		close(sockfd);
+		exit(1);
 
 		// Create child process to handle processing multiple connections
 		number_children++; // Keep track of number of open children

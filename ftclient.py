@@ -16,8 +16,6 @@ import clienthelper
 if (not clienthelper.checkArgs(sys.argv)):
 	sys.exit()
 
-sys.exit()
-
 # Setup socket connection
 s = clienthelper.initContact(sys.argv)
 
@@ -33,7 +31,8 @@ while True:
 			handle += "> "
 
 		clienthelper.sendUserMsgToServer(s, handle)
-		
+		clienthelper.closeClient(s)
+
 		serverMessage = clienthelper.receiveServerMsg(s)
 
 		# Check if server wants to close the connection

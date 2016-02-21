@@ -28,6 +28,8 @@ def closeClient(s):
 # Reference: http://www.bogotobogo.com/python/python_network_programming_server_client.php
 def initContact(argv):
 	tcpIp = sys.argv[1]
+	print sys.argv[1]
+	print sys.argv[2]
 	tcpPort = int(sys.argv[2]) 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.connect((tcpIp, tcpPort))

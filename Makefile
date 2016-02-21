@@ -65,5 +65,5 @@ default:
 # It's designed to clean up the folder.
 # Be careful with this, edit as needed.
 clean:
-	rm -f ${PROGS} *.o *~
+	rm -f ${PROGS} *.o *~ *.pyc
 
