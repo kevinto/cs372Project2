@@ -14,32 +14,26 @@ import clienthelper
 
 # Check arguments
 if (not clienthelper.checkArgs(sys.argv)):
-	sys.exit()
+    sys.exit()    
 
 # Setup socket connection
 s = clienthelper.initContact(sys.argv)
 
-handle = ""
 userMessage = ""
 userInput = ""
 serverMessage = ""
 while True:
-	try:
-		# Get user handle
-		if not handle:
-			handle = raw_input("Enter your handle: ")
-			handle += "> "
+    try:
+        clienthelper.sendUserMsgToServer(s, sys.argv[3] + "\n")
+        clienthelper.closeClient(s)
 
-		clienthelper.sendUserMsgToServer(s, handle)
-		clienthelper.closeClient(s)
+        serverMessage = clienthelper.receiveServerMsg(s)
 
-		serverMessage = clienthelper.receiveServerMsg(s)
+        # Check if server wants to close the connection
+        if "\quit\n" in serverMessage:
+            clienthelper.closeClient(s)
 
-		# Check if server wants to close the connection
-		if "\quit\n" in serverMessage:
-			clienthelper.closeClient(s)
+        print serverMessage,
 
-		print serverMessage,
-
-	except KeyboardInterrupt:
-		clienthelper.closeClient(s)
+    except KeyboardInterrupt:
+        clienthelper.closeClient(s)

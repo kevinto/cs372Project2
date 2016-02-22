@@ -15,7 +15,7 @@ import time
 #		socket: Object that holds the server connection info
 def closeClient(s):
     try:
-        s.send("quit\n")
+        # s.send("quit\n")
         s.close()
         sys.exit()
     except:
@@ -24,16 +24,14 @@ def closeClient(s):
 
 # Purpose: Set up connection to server
 # Params:
-#		argv: string array of parameters passed into clint.py
+#       argv: string array of parameters passed into clint.py
 # Reference: http://www.bogotobogo.com/python/python_network_programming_server_client.php
 def initContact(argv):
-	tcpIp = sys.argv[1]
-	print sys.argv[1]
-	print sys.argv[2]
-	tcpPort = int(sys.argv[2]) 
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.connect((tcpIp, tcpPort))
-	return s
+    tcpIp = sys.argv[1]
+    tcpPort = int(sys.argv[2]) 
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((tcpIp, tcpPort))
+    return s
 
 
 # Purpose: To wait for the server message to come
@@ -41,25 +39,23 @@ def initContact(argv):
 #		socket: Object that holds the server connection info
 #		handle: String containing the client user name
 def sendUserMsgToServer(s, handle):
-	# Get user message
-    userInput = raw_input(handle)
-    userMessage = handle + userInput + "\n"
 
     try:
         # Check if user wants to close connection
-        if userInput == "\quit" :
-            s.send("quit\n")
-            s.close()
-            sys.exit()
+        # if userInput == "\quit" :
+        #     s.send("quit\n")
+        #     s.close()
+        #     sys.exit()
 
-        s.send(userMessage)
+        print "Sending: " + handle
+        s.send(handle)
     except:
-        print "Server disconnected..."
+        print "Error: Server disconnected..."
         sys.exit()
 
 # Purpose: To wait for the server message to come
 # Params:
-#		s: Object that holds the server connection info
+#       s: Object that holds the server connection info
 # Reference: http://www.binarytides.com/receive-full-data-with-the-recv-socket-function-in-python/
 def receiveServerMsg(s):
     # Set socket to non-blocking. This enables the while loop below
@@ -73,14 +69,14 @@ def receiveServerMsg(s):
     total_data=[]
 
     while 1:
-    	# Only exit loop if there is data and we found a null terminator
+        # Only exit loop if there is data and we found a null terminator
         if total_data and foundNull:
             break
          
         try:
             data = s.recv(8192)
             if data:
-            	# Found data, append to array
+                # Found data, append to array
                 total_data.append(data)
 
                 # Check for null termination
@@ -90,7 +86,7 @@ def receiveServerMsg(s):
             # Check if connection is terminated from client end
             # Reference: http://stackoverflow.com/questions/5686490/detect-socket-hangup-without-sending-or-receiving
             if len(data) == 0:
-            	return "\quit\n"
+                return "\quit\n"
         except:
             pass
 
@@ -99,40 +95,40 @@ def receiveServerMsg(s):
 
 # Purpose: Check the arguments that are passed into client.py
 # Params:
-#		argv: string array of parameters passed into clint.py
+#        argv: string array of parameters passed into clint.py
 def checkArgs(argv):
-	# Check that the correct number of arguments are sent in
-	if len(argv) != 5 and len(argv) != 6:
+    # Check that the correct number of arguments are sent in
+    if len(argv) != 5 and len(argv) != 6:
 
-		print 'Error: Valid commands can be either of the following:'
-		print 'ftclient <hostname> <server port> <command> <data port>'
-		print 'ftclient <hostname> <server port> <command> <file name> <data port>'
-		return False
-	
-	serverPort = 0
-	dataPort = 0
-		
-	if len(argv) == 5:		
-		dataPort = argv[4]
+        print 'Error: Valid commands can be either of the following:'
+        print 'ftclient <hostname> <server port> <command> <data port>'
+        print 'ftclient <hostname> <server port> <command> <file name> <data port>'
+        return False
 
-	if len(argv) == 6:
-		dataPort = argv[5]
+    serverPort = 0
+    dataPort = 0
 
-	try:
-		# Convert port param into a number
-		serverPort = int(argv[2])
-		dataPortNumber = int(dataPort)
-	except:
-		print 'Error: One or both ports are not valid numbers'
+    if len(argv) == 5:
+        dataPort = argv[4]
 
-	# Check if the server port is within an acceptable numeric range
-	if serverPort < 1024 or 65535 < serverPort:
-		print 'Error: Server Port has to be in the range 1024 to 65525'
-		return False
+    if len(argv) == 6:
+        dataPort = argv[5]
 
-	# Check if the data port is within an acceptable numeric range
-	if dataPortNumber < 1024 or 65535 < dataPortNumber:
-		print 'Error: Data Port has to be in the range 1024 to 65525'
-		return False
+    try:
+        # Convert port param into a number
+        serverPort = int(argv[2])
+        dataPortNumber = int(dataPort)
+    except:
+        print 'Error: One or both ports are not valid numbers'
 
-	return True
+    # Check if the server port is within an acceptable numeric range
+    if serverPort < 1024 or 65535 < serverPort:
+        print 'Error: Server Port has to be in the range 1024 to 65525'
+        return False
+
+    # Check if the data port is within an acceptable numeric range
+    if dataPortNumber < 1024 or 65535 < dataPortNumber:
+        print 'Error: Data Port has to be in the range 1024 to 65525'
+        return False
+
+    return True

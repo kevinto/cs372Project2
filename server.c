@@ -157,8 +157,8 @@ int main (int argc, char *argv[])
 		}
 
 		// Remove THIS
-		close(sockfd);
-		exit(1);
+		// close(sockfd);
+		// exit(1);
 
 		// Create child process to handle processing multiple connections
 		number_children++; // Keep track of number of open children
@@ -199,6 +199,10 @@ void ProcessConnection(int socket)
 {
 	char handshakeReply[2];
 	int precedeWithEnc = ReceiveClientHandshake(socket);
+
+	// TODO: 
+	printf("Server terminated child\n");
+	exit(0); // Exiting the child process.
 
 	// If client is not the correct client, then reject it.
 	if (!precedeWithEnc)
@@ -324,8 +328,10 @@ int ReceiveClientHandshake(int socket)
 
 	recv(socket, receiveBuffer, LENGTH, 0);
 
-	if (strcmp(receiveBuffer, "otp_enc") == 0)
+	printf("in handshake: %s\n", receiveBuffer);
+	if (strcmp(receiveBuffer, "-l\n") == 0)
 	{
+		printf("received list command\n");
 		return 1; // Connection valid
 	}
 	else
