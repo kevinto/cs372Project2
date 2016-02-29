@@ -1,14 +1,14 @@
 '''
  Filename: client.py
  Coded by: Kevin To
- Purpose - [CS372 Project 1] - File contains helper methods for the 
+ Purpose - [CS372 Project 2] - File contains helper methods for the 
                                client code. 
 '''
 import socket
 import sys
 import struct
 import time
-
+import SocketServer
 
 # Purpose: Close server connection and exit client
 # Params:
@@ -36,7 +36,7 @@ def initCommandSocket(argv):
 # Params:
 #       argv: string array of parameters passed into clint.py
 # Reference: https://docs.python.org/2/library/socketserver.html 
-def initDataSocket(argv):
+def initiateContact(argv):
     tcpIp = sys.argv[1]
     tcpPort = int(sys.argv[2]) 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,7 +47,7 @@ def initDataSocket(argv):
 # Params:
 #		socket: Object that holds the server connection info
 #		argv: Array containing command params
-def sendCommandToServer(s, argv):
+def makeRequest(s, argv):
     sendString = GenerateServerCommand(argv);
     
     try:

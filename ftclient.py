@@ -28,25 +28,22 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         self.data = self.request.recv(1024).strip()
         print "{} wrote:".format(self.client_address[0])
         print self.data
-        # just send back the same data, but upper-cased
-        # self.request.sendall(self.data.upper())
 
 # Check arguments
 if (not clienthelper.checkArgs(sys.argv)):
     sys.exit()
 
-# Setup socket connection
-commandSocket = clienthelper.initCommandSocket(sys.argv)
+# Setup command socket connection
+commandSocket = clienthelper.initiateContact(sys.argv)
 
+# Setup data socket connection
+HOST, PORT = sys.argv[1], clienthelper.GetDataPort(sys.argv)
+dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
 
 # serverMessage = ""
 # while True:
 try:
-    # Create the server
-    HOST, PORT = sys.argv[1], clienthelper.GetDataPort(sys.argv)
-    dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
-    
-    clienthelper.sendCommandToServer(commandSocket, sys.argv)
+    clienthelper.makeRequest(commandSocket, sys.argv)
     dataSocket.handle_request()
     
     # serverMessage = clienthelper.receiveServerMsg(s)
@@ -58,6 +55,7 @@ try:
     sys.exit()
     
 except KeyboardInterrupt:
+    # Clean up sockets
     commandSocket.close()
     dataSocket.server_close()
     sys.exit()
