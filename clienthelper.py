@@ -53,15 +53,20 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     client.
     """
     action = ""
+    dataPort = ""
     
     def handle(self):
         # self.request is the TCP socket connected to the client
-        self.data = self.request.recv(1024).strip()
+        self.data = self.request.recv(8024).strip()
         
         if self.action == "-l":
+            # self.data = self.request.recv(1024).strip()
             self.outputDirList()
+        else:
+            print "receiving data..."
+            #implement the long file recieve below
+            print self.data
         
-        # print "{} wrote:".format(self.client_address[0])
         # print self.data
         # print self.action
     
@@ -73,7 +78,11 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 cleanDirList += char
                 
         dirList = cleanDirList.split(",")
-        print dirList 
+        
+        print "Receiving directory structure from %s:%d" % (dirList[0], self.dataPort)
+        
+        for i in range(1, len(dirList)):
+            print dirList[i]
         
 # Purpose: Set up data connection to server
 # Params:
@@ -82,6 +91,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 def setupDataConnection(argv):
     # Make sure the handler knows what command we are running
     MyTCPHandler.action = argv[3]
+    MyTCPHandler.dataPort = GetDataPort(argv)
     
     HOST, PORT = argv[1], GetDataPort(argv)
     dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)

@@ -354,6 +354,7 @@ void GetFileList(char *dirList, int arrLen)
     // printf("dirList: %s\n", dirList);
 }
 
+// TODO: Left off here. need to end file now.
 /**************************************************************
  * * Entry:
  * *  sockfd - the socket to send the file list to.
@@ -367,16 +368,13 @@ void GetFileList(char *dirList, int arrLen)
  * ***************************************************************/
 void SendFileToServer(int sockfd, char *transferFileName)
 {
-	char sendBuffer[LENGTH];
-	bzero(sendBuffer, LENGTH);
-	strncpy(sendBuffer, "fil_na", LENGTH);
-	// strncpy(sendBuffer, "otp_dec", LENGTH);
-
-	int sendSize = 7;
-	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
-	{
-		printf("Error: Failed to send initial handshake.\n");
-	}
+	printf("in here: %s\n", transferFileName);
+	FILE * transferFilePointer;
+	transferFilePointer = fopen(transferFileName, "r+");
+	int fd = fileno(transferFilePointer);
+	printf("in here: %d\n", fd);
+	SendFileToClient(sockfd, fd);
+	fclose(transferFilePointer);
 }
 
 /**************************************************************
@@ -582,6 +580,46 @@ int GetNumCommas(char *strValue, int strLen)
 	}
 	
 	return numCommas;
+}
+
+/**************************************************************
+ * * Entry:
+ * *  socket - the file desc for the socket
+ * *  tempFilePointer - the file desc for the temp file
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Sends the contents of the temp file to the client.
+ * *
+ * ***************************************************************/
+void SendFileToClient(int socket, int tempFilePointer)
+{
+	char sendBuffer[LENGTH]; // Send buffer
+	// printf("[otp_enc_d] Sending received file to the Client..."); // For debugging only
+	if (tempFilePointer == 0)
+	{
+		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
+		fprintf(stderr, "ERROR: File temp received not found on server.");
+		exit(1);
+	}
+
+		printf("sending....");
+	bzero(sendBuffer, LENGTH);
+	int readSize;
+	while ((readSize = read(tempFilePointer, sendBuffer, LENGTH)) > 0)
+	{
+		printf("sending....");
+		if (send(socket, sendBuffer, readSize, 0) < 0)
+		{
+			// fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
+			fprintf(stderr, "ERROR: Failed to send file temp received.");
+			exit(1);
+		}
+		bzero(sendBuffer, LENGTH);
+	}
+	// printf("Ok sent to client!\n"); // For debugging only
 }
 
 // -----------------------------------------------------------------------------
@@ -908,43 +946,6 @@ int GetSizeOfPlaintext(FILE *filePointer)
 	return fileSize;
 }
 
-/**************************************************************
- * * Entry:
- * *  socket - the file desc for the socket
- * *	tempFilePointer - the file desc for the temp file
- * *
- * * Exit:
- * *  n/a
- * *
- * * Purpose:
- * * 	Sends the contents of the temp file to the client.
- * *
- * ***************************************************************/
-void SendFileToClient(int socket, int tempFilePointer)
-{
-	char sendBuffer[LENGTH]; // Send buffer
-	// printf("[otp_enc_d] Sending received file to the Client..."); // For debugging only
-	if (tempFilePointer == 0)
-	{
-		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
-		fprintf(stderr, "ERROR: File temp received not found on server.");
-		exit(1);
-	}
-
-	bzero(sendBuffer, LENGTH);
-	int readSize;
-	while ((readSize = read(tempFilePointer, sendBuffer, LENGTH)) > 0)
-	{
-		if (send(socket, sendBuffer, readSize, 0) < 0)
-		{
-			// fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
-			fprintf(stderr, "ERROR: Failed to send file temp received.");
-			exit(1);
-		}
-		bzero(sendBuffer, LENGTH);
-	}
-	// printf("Ok sent to client!\n"); // For debugging only
-}
 
 /**************************************************************
  * * Entry:
