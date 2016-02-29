@@ -54,7 +54,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
 int GetCommaIdx(char *strValue, int strLen, int occurance);
 void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
-void SendHandshakeToServer(int sockfd);
+void SendFileListToServer(int sockfd);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -221,8 +221,6 @@ void ProcessConnection(int commandSocket)
 	
 	int dataSocket;
 	struct sockaddr_in remote_addr;
-	char handshakeResponse[2];
-	bzero(handshakeResponse, 2);
 	
 	// Get the Socket file descriptor 
 	if ((dataSocket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
@@ -248,9 +246,7 @@ void ProcessConnection(int commandSocket)
 		// printf("Connected to server at port %d...ok!\n", dataPort); // For debugging
 	}
 
-	// Send initial handshake message to make sure the server exists and that
-	//	we are trying to connect to the correct server
-	SendHandshakeToServer(dataSocket); // Send the combined file
+	SendFileListToServer(dataSocket); 
 
 	// Receives the server status. We will only send the plain text data if the server is 
 	//	willing to accept it.
@@ -271,7 +267,7 @@ void ProcessConnection(int commandSocket)
  * * 	Sends the client's name to the server.
  * *
  * ***************************************************************/
-void SendHandshakeToServer(int sockfd)
+void SendFileListToServer(int sockfd)
 {
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);

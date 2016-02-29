@@ -13,13 +13,6 @@ import time
 import clienthelper
 import SocketServer
 
-# Check arguments
-if (not clienthelper.checkArgs(sys.argv)):
-    sys.exit()
-
-# Setup socket connection
-clientSocket = clienthelper.initCommandSocket(sys.argv)
-
 # Handler for the server code to recieve data from ftserver
 class MyTCPHandler(SocketServer.BaseRequestHandler):
     """
@@ -38,6 +31,14 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         # just send back the same data, but upper-cased
         # self.request.sendall(self.data.upper())
 
+# Check arguments
+if (not clienthelper.checkArgs(sys.argv)):
+    sys.exit()
+
+# Setup socket connection
+commandSocket = clienthelper.initCommandSocket(sys.argv)
+
+
 # serverMessage = ""
 # while True:
 try:
@@ -45,16 +46,18 @@ try:
     HOST, PORT = sys.argv[1], clienthelper.GetDataPort(sys.argv)
     dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
     
-    clienthelper.sendCommandToServer(clientSocket, sys.argv)
+    clienthelper.sendCommandToServer(commandSocket, sys.argv)
     dataSocket.handle_request()
     
     # serverMessage = clienthelper.receiveServerMsg(s)
     # print serverMessage,
     
     # Clean up sockets
-    clientSocket.close()
+    commandSocket.close()
     dataSocket.server_close()
-    clienthelper.closeClient(clientSocket)
-
+    sys.exit()
+    
 except KeyboardInterrupt:
-    clienthelper.closeClient(clientSocket)
+    commandSocket.close()
+    dataSocket.server_close()
+    sys.exit()
