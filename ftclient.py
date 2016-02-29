@@ -19,21 +19,19 @@ if (not clienthelper.checkArgs(sys.argv)):
 # Setup socket connection
 s = clienthelper.initContact(sys.argv)
 
-userMessage = ""
-userInput = ""
-serverMessage = ""
-while True:
-    try:
-        clienthelper.sendUserMsgToServer(s, sys.argv[3] + "\n")
-        clienthelper.closeClient(s)
+# serverMessage = ""
+# while True:
+try:
+    clienthelper.sendCommandToServer(s, sys.argv)
+    clienthelper.closeClient(s)
 
-        serverMessage = clienthelper.receiveServerMsg(s)
+        # serverMessage = clienthelper.receiveServerMsg(s)
 
-        # Check if server wants to close the connection
-        if "\quit\n" in serverMessage:
-            clienthelper.closeClient(s)
+        # # Check if server wants to close the connection
+        # if "\quit\n" in serverMessage:
+        #     clienthelper.closeClient(s)
 
-        print serverMessage,
+        # print serverMessage,
 
-    except KeyboardInterrupt:
-        clienthelper.closeClient(s)
+except KeyboardInterrupt:
+    clienthelper.closeClient(s)

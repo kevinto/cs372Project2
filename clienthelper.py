@@ -34,25 +34,33 @@ def initContact(argv):
     return s
 
 
-# Purpose: To wait for the server message to come
+# Purpose: To send the command to the server
 # Params:
 #		socket: Object that holds the server connection info
-#		handle: String containing the client user name
-def sendUserMsgToServer(s, handle):
-
+#		argv: Array containing command params
+def sendCommandToServer(s, argv):
+    sendString = GenerateServerCommand(argv);
+    
     try:
-        # Check if user wants to close connection
-        # if userInput == "\quit" :
-        #     s.send("quit\n")
-        #     s.close()
-        #     sys.exit()
-
-        print "Sending: " + handle
-        s.send(handle)
+        print "Sending: " + sendString 
+        s.send(sendString)
     except:
         print "Error: Server disconnected..."
         sys.exit()
 
+# Purpose: Generates server command string based on the sys args
+#          passed in.
+# Params:
+#		socket: Object that holds the server connection info
+#		argv: Array containing command params
+def GenerateServerCommand(argv):
+    if len(argv) == 5:
+        return argv[3] + "," + argv[4] + "\n";
+    elif len(argv) == 6:
+        return argv[3] + "," + argv[5] + "," + argv[4] + "\n";
+    else:
+        return "";
+        
 # Purpose: To wait for the server message to come
 # Params:
 #       s: Object that holds the server connection info
@@ -99,21 +107,19 @@ def receiveServerMsg(s):
 def checkArgs(argv):
     # Check that the correct number of arguments are sent in
     if len(argv) != 5 and len(argv) != 6:
-
         print 'Error: Valid commands can be either of the following:'
         print 'ftclient <hostname> <server port> <command> <data port>'
         print 'ftclient <hostname> <server port> <command> <file name> <data port>'
         return False
 
-    serverPort = 0
     dataPort = 0
-
     if len(argv) == 5:
         dataPort = argv[4]
 
     if len(argv) == 6:
         dataPort = argv[5]
 
+    serverPort = 0
     try:
         # Convert port param into a number
         serverPort = int(argv[2])
@@ -129,6 +135,11 @@ def checkArgs(argv):
     # Check if the data port is within an acceptable numeric range
     if dataPortNumber < 1024 or 65535 < dataPortNumber:
         print 'Error: Data Port has to be in the range 1024 to 65525'
+        return False
+
+    # Check if supported commands are sent in
+    if (argv[3] != '-l') and (argv[3] != '-g'):
+        print 'Error: Only -l and -g commands are supported'
         return False
 
     return True

@@ -32,6 +32,7 @@
 #define LISTEN_QUEUE 5
 #define LENGTH 512
 #define NUMBER_ALLOWED_CHARS 27 // Represents the number of different types of allowed characters
+#define BUFFERLENGTH 50 // Max allowed length in a string buffer
 
 // Global variable to track number of children
 int number_children = 0;
@@ -48,8 +49,9 @@ void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
-int ReceiveClientHandshake(int socket);
+int ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort);
 void SendClientHandshakeResponse(int socket, char *serverResponse);
+int GetNumCommas(char *strValue, int strLen);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -197,15 +199,20 @@ int main (int argc, char *argv[])
  * ***************************************************************/
 void ProcessConnection(int socket)
 {
-	char handshakeReply[2];
-	int precedeWithEnc = ReceiveClientHandshake(socket);
+	int dataPort = -1;
+	char clientCommand[BUFFERLENGTH];
+	bzero(clientCommand, BUFFERLENGTH);
+	char transferFileName[BUFFERLENGTH];
+	bzero(transferFileName, BUFFERLENGTH);
+	int receiveSuccess = ReceiveClientCommand(socket, clientCommand, transferFileName, &dataPort);
 
-	// TODO: 
+	// TODO: Determine action after handshake.
 	printf("Server terminated child\n");
 	exit(0); // Exiting the child process.
 
+	char handshakeReply[2];
 	// If client is not the correct client, then reject it.
-	if (!precedeWithEnc)
+	if (!receiveSuccess)
 	{
 		// Send rejection message
 		strncpy(handshakeReply, "R", 1);
@@ -311,7 +318,8 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
 
 /**************************************************************
  * * Entry:
- * *  socket - the socket to receive the hankdshake from
+ * *  socket - the socket to receive the client command, 
+ * *           dataport, and tranfer file name (if applicable)
  * *
  * * Exit:
  * *  Returns 1: if the client is compatible with the server.
@@ -321,13 +329,19 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
  * * 	Receives the initial message from the client.
  * *
  * ***************************************************************/
-int ReceiveClientHandshake(int socket)
+int ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort)
 {
-	char receiveBuffer[8]; // Receiver buffer
-	bzero(receiveBuffer, 8); // Clear out the buffer
-
+	char receiveBuffer[BUFFERLENGTH];
+	bzero(receiveBuffer, BUFFERLENGTH);
 	recv(socket, receiveBuffer, LENGTH, 0);
 
+// Detect how many commas
+// if 1 comma only populate command and dataport
+// if 2 comma populate command, file name, and dataport 
+	// modi dataport by (*dataPort) = 1
+	int numCommas = GetNumCommas(receiveBuffer, BUFFERLENGTH);
+	printf("num commas: %d\n", numCommas);
+	
 	printf("in handshake: %s\n", receiveBuffer);
 	if (strcmp(receiveBuffer, "-l\n") == 0)
 	{
@@ -338,6 +352,30 @@ int ReceiveClientHandshake(int socket)
 	{
 		return 0; // Received handshake from invalid client
 	}
+}
+
+
+int GetNumCommas(char *strValue, int strLen)
+{
+	int i = 0;
+	int numCommas = 0;
+	char currChar = ' ';
+	
+	while(currChar != '\n')
+	{
+		currChar = strValue[i++];
+		if (currChar == ',')
+		{
+			numCommas++;
+		}
+		
+		if (i >= strLen)
+		{
+			break;
+		}
+	}
+	
+	return numCommas;
 }
 
 /**************************************************************
