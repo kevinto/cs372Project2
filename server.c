@@ -55,6 +55,7 @@ int GetNumCommas(char *strValue, int strLen);
 int GetCommaIdx(char *strValue, int strLen, int occurance);
 void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
 void SendFileListToServer(int sockfd);
+void SendFileToServer(int sockfd, char *transferFileName);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -215,10 +216,6 @@ void ProcessConnection(int commandSocket)
 	// printf("Server terminated child\n");
 	// exit(0); // Exiting the child process.
 	
-	// char handshakeReply[2];
-	// strncpy(handshakeReply, "R", 1);
-	// SendClientHandshakeResponse(commandSocket, handshakeReply);
-	
 	int dataSocket;
 	struct sockaddr_in remote_addr;
 	
@@ -246,7 +243,15 @@ void ProcessConnection(int commandSocket)
 		// printf("Connected to server at port %d...ok!\n", dataPort); // For debugging
 	}
 
-	SendFileListToServer(dataSocket); 
+	if (strcmp(clientCommand, "-l") == 0)
+	{
+		printf("Sending directory contents to [need local host]:%d.\n", dataPort);
+		SendFileListToServer(dataSocket);
+	}
+	else if (strcmp(clientCommand, "-g") == 0)
+	{
+		SendFileToServer(dataSocket, transferFileName);
+	}
 
 	// Receives the server status. We will only send the plain text data if the server is 
 	//	willing to accept it.
@@ -258,7 +263,7 @@ void ProcessConnection(int commandSocket)
 
 /**************************************************************
  * * Entry:
- * *  sockfd - the socket to send the handshake to.
+ * *  sockfd - the socket to send the file list to.
  * *
  * * Exit:
  * *  n/a
@@ -272,6 +277,31 @@ void SendFileListToServer(int sockfd)
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
 	strncpy(sendBuffer, "otp_enc", LENGTH);
+	// strncpy(sendBuffer, "otp_dec", LENGTH);
+	
+	int sendSize = 7;
+	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
+	{
+		printf("Error: Failed to send initial handshake.\n");
+	}
+}
+
+/**************************************************************
+ * * Entry:
+ * *  sockfd - the socket to send the file list to.
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Sends the client's name to the server.
+ * *
+ * ***************************************************************/
+void SendFileToServer(int sockfd, char *transferFileName)
+{
+	char sendBuffer[LENGTH];
+	bzero(sendBuffer, LENGTH);
+	strncpy(sendBuffer, "fil_na", LENGTH);
 	// strncpy(sendBuffer, "otp_dec", LENGTH);
 
 	int sendSize = 7;

@@ -13,8 +13,6 @@ import time
 import clienthelper
 import SocketServer
 
-
-
 # Check arguments
 if (not clienthelper.checkArgs(sys.argv)):
     sys.exit()
