@@ -11,27 +11,49 @@ import sys
 import struct
 import time
 import clienthelper
+import SocketServer
 
 # Check arguments
 if (not clienthelper.checkArgs(sys.argv)):
-    sys.exit()    
+    sys.exit()
 
 # Setup socket connection
-s = clienthelper.initContact(sys.argv)
+s = clienthelper.initCommandSocket(sys.argv)
+
+# Handler for the server code to recieve data from ftserver
+class MyTCPHandler(SocketServer.BaseRequestHandler):
+    """
+    The request handler class for our server.
+
+    It is instantiated once per connection to the server, and must
+    override the handle() method to implement communication to the
+    client.
+    """
+
+    def handle(self):
+        # self.request is the TCP socket connected to the client
+        self.data = self.request.recv(1024).strip()
+        print "{} wrote:".format(self.client_address[0])
+        print self.data
+        # just send back the same data, but upper-cased
+        # self.request.sendall(self.data.upper())
 
 # serverMessage = ""
 # while True:
 try:
+    # Create the server
+    HOST, PORT = sys.argv[1], clienthelper.GetDataPort(sys.argv)
+    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    
     clienthelper.sendCommandToServer(s, sys.argv)
+    server.handle_request()
+    s.close()
+    
+    # serverMessage = clienthelper.receiveServerMsg(s)
+    # print serverMessage,
+    
+    server.server_close()
     clienthelper.closeClient(s)
-
-        # serverMessage = clienthelper.receiveServerMsg(s)
-
-        # # Check if server wants to close the connection
-        # if "\quit\n" in serverMessage:
-        #     clienthelper.closeClient(s)
-
-        # print serverMessage,
 
 except KeyboardInterrupt:
     clienthelper.closeClient(s)

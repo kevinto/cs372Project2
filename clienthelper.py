@@ -15,7 +15,6 @@ import time
 #		socket: Object that holds the server connection info
 def closeClient(s):
     try:
-        # s.send("quit\n")
         s.close()
         sys.exit()
     except:
@@ -26,13 +25,23 @@ def closeClient(s):
 # Params:
 #       argv: string array of parameters passed into clint.py
 # Reference: http://www.bogotobogo.com/python/python_network_programming_server_client.php
-def initContact(argv):
+def initCommandSocket(argv):
     tcpIp = sys.argv[1]
     tcpPort = int(sys.argv[2]) 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((tcpIp, tcpPort))
     return s
 
+# Purpose: Set up connection to server
+# Params:
+#       argv: string array of parameters passed into clint.py
+# Reference: https://docs.python.org/2/library/socketserver.html 
+def initDataSocket(argv):
+    tcpIp = sys.argv[1]
+    tcpPort = int(sys.argv[2]) 
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((tcpIp, tcpPort))
+    return s
 
 # Purpose: To send the command to the server
 # Params:
@@ -143,3 +152,14 @@ def checkArgs(argv):
         return False
 
     return True
+    
+# Purpose: Gets the data port from the command line args
+# Params:
+#		argv: Array containing command params
+def GetDataPort(argv):
+    if len(argv) == 5:
+        return int(argv[4]);
+    elif len(argv) == 6:
+        return int(argv[5]);
+    else:
+        return -1;

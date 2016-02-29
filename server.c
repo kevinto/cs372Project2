@@ -54,6 +54,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
 int GetCommaIdx(char *strValue, int strLen, int occurance);
 void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
+void SendHandshakeToServer(int sockfd);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -199,105 +200,89 @@ int main (int argc, char *argv[])
  * *  server processing of the client request.
  * *
  * ***************************************************************/
-void ProcessConnection(int socket)
+void ProcessConnection(int commandSocket)
 {
 	int dataPort = -1;
 	char clientCommand[BUFFERLENGTH];
 	bzero(clientCommand, BUFFERLENGTH);
 	char transferFileName[BUFFERLENGTH];
 	bzero(transferFileName, BUFFERLENGTH);
-	ReceiveClientCommand(socket, clientCommand, transferFileName, &dataPort);
+	ReceiveClientCommand(commandSocket, clientCommand, transferFileName, &dataPort);
 	
-	// For Debug
-	// printf("clientCommand: %s\n", clientCommand);
-	// printf("transferFileName: %s\n", transferFileName);
-	// printf("dataport: %d\n", dataPort);
-
 	OutputServerReqMsg(clientCommand, transferFileName, dataPort);
+	close(commandSocket);
 	
-	// TODO: Determine action after handshake.
-	printf("Server terminated child\n");
-	exit(0); // Exiting the child process.
-
-	char handshakeReply[2];
-	// If client is not the correct client, then reject it.
-	int receiveSuccess = 1;
-	if (!receiveSuccess)
+	// printf("Server terminated child\n");
+	// exit(0); // Exiting the child process.
+	
+	// char handshakeReply[2];
+	// strncpy(handshakeReply, "R", 1);
+	// SendClientHandshakeResponse(commandSocket, handshakeReply);
+	
+	int dataSocket;
+	struct sockaddr_in remote_addr;
+	char handshakeResponse[2];
+	bzero(handshakeResponse, 2);
+	
+	// Get the Socket file descriptor 
+	if ((dataSocket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{
-		// Send rejection message
-		strncpy(handshakeReply, "R", 1);
-		SendClientHandshakeResponse(socket, handshakeReply);
-
-		exit(0); // Exiting the child process.
+		printf("Error: Failed to obtain socket descriptor.\n");
+		exit(2);
 	}
 
-	// If there are more than 5 server children then close the connection 
-	// with the client
-	if (number_children > 5)
-	{
-		strncpy(handshakeReply, "T", 1);
-		SendClientHandshakeResponse(socket, handshakeReply);
-		exit(0); // Exiting the child process.
-	}
+	// Fill the socket address struct   
+	remote_addr.sin_family = AF_INET;
+	remote_addr.sin_port = htons(dataPort);
+	inet_pton(AF_INET, "127.0.0.1", &remote_addr.sin_addr);
+	bzero(&(remote_addr.sin_zero), 8);
 
-	// Send connection successful back to the client
-	strncpy(handshakeReply, "S", 1);
-	SendClientHandshakeResponse(socket, handshakeReply);
-
-	// Receive the plaintext and key file from the client
-	// Both plaintext and key are in one file
-	int receiveTempFilePointer = GetTempFD();
-	FILE *filePointer = fdopen(receiveTempFilePointer, "w+");
-	if (filePointer == 0)
+	// Try to connect the remote 
+	if (connect(dataSocket, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) == -1)
 	{
-		printf("File temp receive cannot be opened file on server.\n");
+		printf("Error: could not contact client on port %d\n", dataPort);
+		exit(2);
 	}
 	else
 	{
-		ReceiveClientFile(socket, filePointer);
+		// printf("Connected to server at port %d...ok!\n", dataPort); // For debugging
 	}
-	AddNewLineToEndOfFile(filePointer);
 
-	// Get the plain text from the file and save to a string so we can encrypt it later
-	int plainTextSize = GetSizeOfPlaintext(filePointer);
-	char *plainTextString = malloc(plainTextSize + 1); // Allocates memory for the string taken from the file
-	bzero(plainTextString, plainTextSize + 1);
-	SavePlainTextToString(plainTextString, plainTextSize, filePointer);
-	// printf("plainTextString: %s\n", plainTextString); // For debug only
+	// Send initial handshake message to make sure the server exists and that
+	//	we are trying to connect to the correct server
+	SendHandshakeToServer(dataSocket); // Send the combined file
 
-	// Get the plain text from the file and save to a string so we can encrypt it later
-	int keyTextSize = GetSizeOfKeyText(filePointer);
-	char *keyTextString = malloc(keyTextSize + 1); // Allocates memory for the string taken from the file
-	bzero(keyTextString, keyTextSize + 1);
-	SaveKeyTextToString(keyTextString, keyTextSize, filePointer);
-	// printf("keyTextString: %s\n", keyTextString);
+	// Receives the server status. We will only send the plain text data if the server is 
+	//	willing to accept it.
+	// ReceiveServerHandshakeConfirm(dataSocket, handshakeResponse);
+	close(dataSocket);
+	printf("Server terminated child\n");
+	exit(0); // Exiting the child process.
+}
 
-	// calculate size of the encypted text so we can allocate space for it.
-	char *cipherText = malloc(plainTextSize + 1); // Allocates memory for the cipherText
-	bzero(cipherText, plainTextSize + 1);
-	EncyptText(plainTextString, plainTextSize, keyTextString, keyTextSize, cipherText);
+/**************************************************************
+ * * Entry:
+ * *  sockfd - the socket to send the handshake to.
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Sends the client's name to the server.
+ * *
+ * ***************************************************************/
+void SendHandshakeToServer(int sockfd)
+{
+	char sendBuffer[LENGTH];
+	bzero(sendBuffer, LENGTH);
+	strncpy(sendBuffer, "otp_enc", LENGTH);
+	// strncpy(sendBuffer, "otp_dec", LENGTH);
 
-	int resultTempFD = 	GetTempFD();
-	FILE *resultFilePointer = fdopen(resultTempFD, "w+");
-	if (resultFilePointer != 0)
+	int sendSize = 7;
+	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
 	{
-		// printf("putting to file: %s\n", cipherText); // For debugging only
-		fputs(cipherText, resultFilePointer);
-		AddNewLineToEndOfFile(resultFilePointer);
+		printf("Error: Failed to send initial handshake.\n");
 	}
-
-	// Send File to Client
-	// SendFileToClient(socket, receiveTempFilePointer);
-	SendFileToClient(socket, resultTempFD);
-
-	free(plainTextString);
-	free(keyTextString);
-	free(cipherText);
-	fclose(filePointer);
-	close(receiveTempFilePointer);
-	close(socket);
-
-	// printf("[otp_enc_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
 }
 
 /**************************************************************
@@ -346,7 +331,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
 
 	if (send(socket, sendBuffer, 1, 0) < 0)
 	{
-		printf("[otp_enc_d] ERROR: Failed to send client the handshake response.");
+		printf("ERROR: Failed to send client the following message: %s", serverResponse);
 		exit(1);
 	}
 }
@@ -491,6 +476,8 @@ int GetNumCommas(char *strValue, int strLen)
 	
 	return numCommas;
 }
+
+// -----------------------------------------------------------------------------
 
 /**************************************************************
  * * Entry:
