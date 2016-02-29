@@ -89,9 +89,9 @@ def makeRequest(s, argv):
 #		argv: Array containing command params
 def GenerateServerCommand(argv):
     if len(argv) == 5:
-        return argv[3] + "," + argv[4] + "\n";
+        return argv[3] + "," + argv[4] + "," + socket.gethostname() + "\n";
     elif len(argv) == 6:
-        return argv[3] + "," + argv[5] + "," + argv[4] + "\n";
+        return argv[3] + "," + argv[5] + "," + argv[4] + "," + socket.gethostname() + "\n";
     else:
         return "";
         

@@ -49,7 +49,7 @@ void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
-void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort);
+void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort, char *clientHostName);
 void SendClientHandshakeResponse(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
 int GetCommaIdx(char *strValue, int strLen, int occurance);
@@ -208,7 +208,15 @@ void ProcessConnection(int commandSocket)
 	bzero(clientCommand, BUFFERLENGTH);
 	char transferFileName[BUFFERLENGTH];
 	bzero(transferFileName, BUFFERLENGTH);
-	ReceiveClientCommand(commandSocket, clientCommand, transferFileName, &dataPort);
+	char clientHostName[BUFFERLENGTH];
+	bzero(clientHostName, BUFFERLENGTH);
+	ReceiveClientCommand(commandSocket, clientCommand, transferFileName, &dataPort, clientHostName);
+
+	// For debugging	
+	// printf("clientCommand: %s\n", clientCommand);	
+	// printf("transferFileName: %s\n", transferFileName);	
+	// printf("dataport: %d\n", dataPort);	
+	// printf("clientHostName: %s\n", clientHostName);	
 	
 	OutputServerReqMsg(clientCommand, transferFileName, dataPort);
 	close(commandSocket);
@@ -245,7 +253,7 @@ void ProcessConnection(int commandSocket)
 
 	if (strcmp(clientCommand, "-l") == 0)
 	{
-		printf("Sending directory contents to [need local host]:%d.\n", dataPort);
+		printf("Sending directory contents to %s:%d.\n", clientHostName, dataPort);
 		SendFileListToServer(dataSocket);
 	}
 	else if (strcmp(clientCommand, "-g") == 0)
@@ -369,6 +377,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
  * *  clientCommand - char array that holds the client command
  * *  transferFileName - char array that holds the transfer file name 
  * *  dataPort - int passed by ref to hold port number
+ * *  clientHostName - char array that holds the client host name
  * *
  * * Exit:
  * *  N/A
@@ -377,7 +386,7 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
  * * 	Receives the command message from the client.
  * *
  * ***************************************************************/
-void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort)
+void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort, char *clientHostName)
 {
 	// Wait for client to send message
 	char receiveBuffer[BUFFERLENGTH];
@@ -397,31 +406,43 @@ void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileNam
 	strncpy(dataPortBuffer, receiveBuffer + commaIdx + 1, BUFFERLENGTH);
 	(*dataPort) = atoi(dataPortBuffer);
 
-	// Get file name if a third param is passed through	
 	if (numCommas == 2)
 	{
 		int commaIdx = GetCommaIdx(receiveBuffer, BUFFERLENGTH, 2);
-		strncpy(transferFileName, receiveBuffer + commaIdx + 1, BUFFERLENGTH);
+		strncpy(clientHostName, receiveBuffer + commaIdx + 1, BUFFERLENGTH);
+	}
+
+	// Get file name if a third param is passed through	
+	if (numCommas == 3)
+	{
+		// Example = "-l, 3333, filename, hostname". 
+		// This code block finds the second and third comma and gets the value
+		// in between
+		int commaIdxStart = GetCommaIdx(receiveBuffer, BUFFERLENGTH, 2);
+		int commaIdxEnd = GetCommaIdx(receiveBuffer, BUFFERLENGTH, 3);
+		strncpy(transferFileName, receiveBuffer + commaIdxStart + 1, commaIdxEnd - commaIdxStart - 1);
 		
-		// Clean the newline character
-		int i = 0;
-		char currChar = ' ';
-		while(currChar != 0)
+		strncpy(clientHostName, receiveBuffer + commaIdxEnd + 1, BUFFERLENGTH);
+	}
+	
+	// Clean the newline character
+	int i = 0;
+	char currChar = ' ';
+	while(currChar != 0)
+	{
+		if (i == BUFFERLENGTH)
 		{
-			if (i == BUFFERLENGTH)
-			{
-				break;
-			}
-			
-			currChar = transferFileName[i];	
-			if (currChar == '\n')
-			{
-				transferFileName[i] = 0;
-				break;
-			}
-			
-			i++;
+			break;
 		}
+		
+		currChar = clientHostName[i];	
+		if (currChar == '\n')
+		{
+			clientHostName[i] = 0;
+			break;
+		}
+		
+		i++;
 	}
 }
 
