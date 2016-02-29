@@ -112,7 +112,7 @@ int main (int argc, char *argv[])
 	// Bind a port
 	if ( bind(sockfd, (struct sockaddr*)&addr_local, sizeof(struct sockaddr)) == -1 )
 	{
-		// fprintf(stderr, "ERROR: Failed to bind Port. (errno = %d)\n", errno);
+		fprintf(stderr, "ERROR: Failed to bind Port. (errno = %d)\n", errno);
 		exit(1);
 	}
 	else

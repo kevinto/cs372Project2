@@ -18,7 +18,7 @@ if (not clienthelper.checkArgs(sys.argv)):
     sys.exit()
 
 # Setup socket connection
-s = clienthelper.initCommandSocket(sys.argv)
+clientSocket = clienthelper.initCommandSocket(sys.argv)
 
 # Handler for the server code to recieve data from ftserver
 class MyTCPHandler(SocketServer.BaseRequestHandler):
@@ -43,17 +43,18 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 try:
     # Create the server
     HOST, PORT = sys.argv[1], clienthelper.GetDataPort(sys.argv)
-    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
     
-    clienthelper.sendCommandToServer(s, sys.argv)
-    server.handle_request()
-    s.close()
+    clienthelper.sendCommandToServer(clientSocket, sys.argv)
+    dataSocket.handle_request()
     
     # serverMessage = clienthelper.receiveServerMsg(s)
     # print serverMessage,
     
-    server.server_close()
-    clienthelper.closeClient(s)
+    # Clean up sockets
+    clientSocket.close()
+    dataSocket.server_close()
+    clienthelper.closeClient(clientSocket)
 
 except KeyboardInterrupt:
-    clienthelper.closeClient(s)
+    clienthelper.closeClient(clientSocket)
