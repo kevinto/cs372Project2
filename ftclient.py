@@ -13,21 +13,7 @@ import time
 import clienthelper
 import SocketServer
 
-# Handler for the server code to recieve data from ftserver
-class MyTCPHandler(SocketServer.BaseRequestHandler):
-    """
-    The request handler class for our server.
 
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
-
-    def handle(self):
-        # self.request is the TCP socket connected to the client
-        self.data = self.request.recv(1024).strip()
-        print "{} wrote:".format(self.client_address[0])
-        print self.data
 
 # Check arguments
 if (not clienthelper.checkArgs(sys.argv)):
@@ -37,8 +23,7 @@ if (not clienthelper.checkArgs(sys.argv)):
 commandSocket = clienthelper.initiateContact(sys.argv)
 
 # Setup data socket connection
-HOST, PORT = sys.argv[1], clienthelper.GetDataPort(sys.argv)
-dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+dataSocket = clienthelper.setupDataConnection(sys.argv)
 
 # serverMessage = ""
 # while True:

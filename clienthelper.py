@@ -32,7 +32,7 @@ def initCommandSocket(argv):
     s.connect((tcpIp, tcpPort))
     return s
 
-# Purpose: Set up connection to server
+# Purpose: Set up command connection to server
 # Params:
 #       argv: string array of parameters passed into clint.py
 # Reference: https://docs.python.org/2/library/socketserver.html 
@@ -42,6 +42,31 @@ def initiateContact(argv):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((tcpIp, tcpPort))
     return s
+
+# Handler for the server code to recieve data from ftserver
+class MyTCPHandler(SocketServer.BaseRequestHandler):
+    """
+    The request handler class for our server.
+
+    It is instantiated once per connection to the server, and must
+    override the handle() method to implement communication to the
+    client.
+    """
+
+    def handle(self):
+        # self.request is the TCP socket connected to the client
+        self.data = self.request.recv(1024).strip()
+        print "{} wrote:".format(self.client_address[0])
+        print self.data
+        
+# Purpose: Set up data connection to server
+# Params:
+#       argv: string array of parameters passed into clint.py
+# Reference: https://docs.python.org/2/library/socketserver.html 
+def setupDataConnection(argv):
+    HOST, PORT = argv[1], GetDataPort(argv)
+    dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    return dataSocket
 
 # Purpose: To send the command to the server
 # Params:
