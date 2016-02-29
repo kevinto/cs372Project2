@@ -52,18 +52,37 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     override the handle() method to implement communication to the
     client.
     """
-
+    action = ""
+    
     def handle(self):
         # self.request is the TCP socket connected to the client
         self.data = self.request.recv(1024).strip()
-        print "{} wrote:".format(self.client_address[0])
-        print self.data
+        
+        if self.action == "-l":
+            self.outputDirList()
+        
+        # print "{} wrote:".format(self.client_address[0])
+        # print self.data
+        # print self.action
+    
+    def outputDirList(self):
+        strLen = len(self.data)
+        cleanDirList = ""
+        for char in self.data:
+            if char != '\x00':
+                cleanDirList += char
+                
+        dirList = cleanDirList.split(",")
+        print dirList 
         
 # Purpose: Set up data connection to server
 # Params:
 #       argv: string array of parameters passed into clint.py
 # Reference: https://docs.python.org/2/library/socketserver.html 
 def setupDataConnection(argv):
+    # Make sure the handler knows what command we are running
+    MyTCPHandler.action = argv[3]
+    
     HOST, PORT = argv[1], GetDataPort(argv)
     dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
     return dataSocket
