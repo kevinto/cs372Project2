@@ -24,6 +24,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <time.h>
+#include <dirent.h> 
 
 #include <sys/sendfile.h>
 #include <sys/stat.h>
@@ -33,6 +34,7 @@
 #define LENGTH 512
 #define NUMBER_ALLOWED_CHARS 27 // Represents the number of different types of allowed characters
 #define BUFFERLENGTH 50 // Max allowed length in a string buffer
+#define FILELISTLENGTH 1024 // Max allowed length for directory list
 
 // Global variable to track number of children
 int number_children = 0;
@@ -56,6 +58,7 @@ int GetCommaIdx(char *strValue, int strLen, int occurance);
 void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
 void SendFileListToServer(int sockfd);
 void SendFileToServer(int sockfd, char *transferFileName);
+void GetFileList(char *returnArr, int arrLen);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -285,13 +288,74 @@ void SendFileListToServer(int sockfd)
 	char sendBuffer[LENGTH];
 	bzero(sendBuffer, LENGTH);
 	strncpy(sendBuffer, "otp_enc", LENGTH);
-	// strncpy(sendBuffer, "otp_dec", LENGTH);
+
+	char fileList[FILELISTLENGTH];
+	bzero(fileList, FILELISTLENGTH);
+	GetFileList(fileList, FILELISTLENGTH);
 	
 	int sendSize = 7;
 	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
 	{
 		printf("Error: Failed to send initial handshake.\n");
 	}
+}
+
+/**************************************************************
+ * * Entry:
+ * *  sockfd - the socket to send the file list to.
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Sends the client's name to the server.
+ * *
+ * * Reference: http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
+ * *
+ * ***************************************************************/
+void GetFileList(char *dirList, int arrLen)
+{
+	// Get host name of server to send
+    char name[50];
+    gethostname(name, 50);
+    strcat(dirList, name);
+    strcat(dirList, ",");
+    
+    DIR *directoryHandle;
+    struct dirent *directoryStruct;
+    
+    // Loop through all the files and add them to the list
+    directoryHandle = opendir(".");
+    if (directoryHandle)
+    {
+    	int currDirLen = 0;
+    	int currDirListLen = 0;
+        while ((directoryStruct = readdir(directoryHandle)) != NULL)
+        {
+            if (strcmp(directoryStruct->d_name, ".") != 0 && strcmp(directoryStruct->d_name, "..") != 0) 
+            {
+            	// Make sure we dont overflow our send buffer
+            	currDirLen = strnlen(directoryStruct->d_name, NAME_MAX);
+	    		currDirListLen = strnlen(dirList, FILELISTLENGTH);
+	    		if ((currDirListLen + currDirLen) > FILELISTLENGTH)
+	    		{
+	    			break;
+	    		}
+	    		
+	    		// Add the directory to the comma delimited list	
+    			strcat(dirList, directoryStruct->d_name);
+    			strcat(dirList, ",");
+            }
+        }
+        
+        closedir(directoryHandle);
+    }
+	
+	// Remove the last comma 
+	int lastCommaIdx = strnlen(dirList, FILELISTLENGTH) - 1;
+	dirList[lastCommaIdx] = 0;
+	
+    // printf("dirList: %s\n", dirList);
 }
 
 /**************************************************************
