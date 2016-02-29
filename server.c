@@ -49,9 +49,11 @@ void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer
 void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
 int GetCharToNumberMapping(char character);
 char GetNumberToCharMapping(int number);
-int ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort);
+void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort);
 void SendClientHandshakeResponse(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
+int GetCommaIdx(char *strValue, int strLen, int occurance);
+void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -204,14 +206,22 @@ void ProcessConnection(int socket)
 	bzero(clientCommand, BUFFERLENGTH);
 	char transferFileName[BUFFERLENGTH];
 	bzero(transferFileName, BUFFERLENGTH);
-	int receiveSuccess = ReceiveClientCommand(socket, clientCommand, transferFileName, &dataPort);
+	ReceiveClientCommand(socket, clientCommand, transferFileName, &dataPort);
+	
+	// For Debug
+	// printf("clientCommand: %s\n", clientCommand);
+	// printf("transferFileName: %s\n", transferFileName);
+	// printf("dataport: %d\n", dataPort);
 
+	OutputServerReqMsg(clientCommand, transferFileName, dataPort);
+	
 	// TODO: Determine action after handshake.
 	printf("Server terminated child\n");
 	exit(0); // Exiting the child process.
 
 	char handshakeReply[2];
 	// If client is not the correct client, then reject it.
+	int receiveSuccess = 1;
 	if (!receiveSuccess)
 	{
 		// Send rejection message
@@ -290,6 +300,31 @@ void ProcessConnection(int socket)
 	// printf("[otp_enc_d] Connection with Client closed. Server will wait now...\n"); // For debugging only
 }
 
+/**************************************************************
+ * * Entry:
+ * *  clientCommand - char array that holds the client command
+ * *  transferFileName - char array that holds the transfer file name 
+ * *  dataPort - int passed by ref to hold port number
+ * *
+ * * Exit:
+ * *  N/A
+ * *
+ * * Purpose:
+ * *  Outputs the server request on to the console
+ * *
+ * ***************************************************************/
+void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort)
+{
+	if (strcmp(clientCommand, "-l") == 0)
+	{
+		printf("List directory requested on port %d.\n", dataPort);
+	}
+	
+	if (strcmp(clientCommand, "-g") == 0)
+	{
+		printf("File \"%s\" requested on port %d.\n", transferFileName, dataPort);
+	}
+}
 
 /**************************************************************
  * * Entry:
@@ -320,41 +355,120 @@ void SendClientHandshakeResponse(int socket, char *serverResponse)
  * * Entry:
  * *  socket - the socket to receive the client command, 
  * *           dataport, and tranfer file name (if applicable)
+ * *  clientCommand - char array that holds the client command
+ * *  transferFileName - char array that holds the transfer file name 
+ * *  dataPort - int passed by ref to hold port number
  * *
  * * Exit:
- * *  Returns 1: if the client is compatible with the server.
- * *  Returns 0: if the client is incompatible with the server.
+ * *  N/A
  * *
  * * Purpose:
- * * 	Receives the initial message from the client.
+ * * 	Receives the command message from the client.
  * *
  * ***************************************************************/
-int ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort)
+void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort)
 {
+	// Wait for client to send message
 	char receiveBuffer[BUFFERLENGTH];
 	bzero(receiveBuffer, BUFFERLENGTH);
 	recv(socket, receiveBuffer, LENGTH, 0);
 
-// Detect how many commas
-// if 1 comma only populate command and dataport
-// if 2 comma populate command, file name, and dataport 
-	// modi dataport by (*dataPort) = 1
+	// Get the comma instance in the command string
 	int numCommas = GetNumCommas(receiveBuffer, BUFFERLENGTH);
-	printf("num commas: %d\n", numCommas);
+	int commaIdx = GetCommaIdx(receiveBuffer, BUFFERLENGTH, 1);
+
+	// Get the client command from the sent string	
+	strncpy(clientCommand, receiveBuffer, commaIdx);
 	
-	printf("in handshake: %s\n", receiveBuffer);
-	if (strcmp(receiveBuffer, "-l\n") == 0)
+	// Get the data port from the sent string	
+	char dataPortBuffer[BUFFERLENGTH];
+	bzero(dataPortBuffer, BUFFERLENGTH);
+	strncpy(dataPortBuffer, receiveBuffer + commaIdx + 1, BUFFERLENGTH);
+	(*dataPort) = atoi(dataPortBuffer);
+
+	// Get file name if a third param is passed through	
+	if (numCommas == 2)
 	{
-		printf("received list command\n");
-		return 1; // Connection valid
-	}
-	else
-	{
-		return 0; // Received handshake from invalid client
+		int commaIdx = GetCommaIdx(receiveBuffer, BUFFERLENGTH, 2);
+		strncpy(transferFileName, receiveBuffer + commaIdx + 1, BUFFERLENGTH);
+		
+		// Clean the newline character
+		int i = 0;
+		char currChar = ' ';
+		while(currChar != 0)
+		{
+			if (i == BUFFERLENGTH)
+			{
+				break;
+			}
+			
+			currChar = transferFileName[i];	
+			if (currChar == '\n')
+			{
+				transferFileName[i] = 0;
+				break;
+			}
+			
+			i++;
+		}
 	}
 }
 
+/**************************************************************
+ * * Entry:
+ * *  strValue - the string value you want to find a comma in.
+ * *  strLen - the length of the string.
+ * *  occurance - the comma occurance you want the index to.
+ * *
+ * * Exit:
+ * *  Returns the index of the comma.
+ * *
+ * * Purpose:
+ * * 	Gets the index of the specified comma occurance.
+ * *
+ * ***************************************************************/
+int GetCommaIdx(char *strValue, int strLen, int occurance)
+{
+	int i = 0;
+	int commaIdx = -1;
+	int numCommas = 0;
+	char currChar = ' ';
+	
+	while(currChar != '\n')
+	{
+		currChar = strValue[i++];
+		if (currChar == ',')
+		{
+			numCommas++;
+		}
+		
+		if (numCommas == occurance)
+		{
+			commaIdx = i - 1;
+			break;
+		}
+		
+		if (i >= strLen)
+		{
+			break;
+		}
+	}
+	
+	return commaIdx;
+}
 
+/**************************************************************
+ * * Entry:
+ * *  strValue - the string value you want to find a comma in.
+ * *  strLen - the length of the string
+ * *
+ * * Exit:
+ * *  Returns the number of commas found.
+ * *
+ * * Purpose:
+ * * 	Gets the number of commas in a string.
+ * *
+ * ***************************************************************/
 int GetNumCommas(char *strValue, int strLen)
 {
 	int i = 0;
