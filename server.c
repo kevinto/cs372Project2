@@ -31,7 +31,7 @@
 #include <fcntl.h>
 
 #define LISTEN_QUEUE 5
-#define LENGTH 512
+#define LENGTH 1024 
 #define NUMBER_ALLOWED_CHARS 27 // Represents the number of different types of allowed characters
 #define BUFFERLENGTH 50 // Max allowed length in a string buffer
 #define FILELISTLENGTH 1024 // Max allowed length for directory list
@@ -214,18 +214,9 @@ void ProcessConnection(int commandSocket)
 	char clientHostName[BUFFERLENGTH];
 	bzero(clientHostName, BUFFERLENGTH);
 	ReceiveClientCommand(commandSocket, clientCommand, transferFileName, &dataPort, clientHostName);
-
-	// For debugging	
-	// printf("clientCommand: %s\n", clientCommand);	
-	// printf("transferFileName: %s\n", transferFileName);	
-	// printf("dataport: %d\n", dataPort);	
-	// printf("clientHostName: %s\n", clientHostName);	
 	
 	OutputServerReqMsg(clientCommand, transferFileName, dataPort);
 	close(commandSocket);
-	
-	// printf("Server terminated child\n");
-	// exit(0); // Exiting the child process.
 	
 	int dataSocket;
 	struct sockaddr_in remote_addr;
@@ -261,6 +252,7 @@ void ProcessConnection(int commandSocket)
 	}
 	else if (strcmp(clientCommand, "-g") == 0)
 	{
+		printf("Sending \"%s\" to %s:%d\n", transferFileName, clientHostName, dataPort);
 		SendFileToServer(dataSocket, transferFileName);
 	}
 
@@ -354,7 +346,6 @@ void GetFileList(char *dirList, int arrLen)
     // printf("dirList: %s\n", dirList);
 }
 
-// TODO: Left off here. need to end file now.
 /**************************************************************
  * * Entry:
  * *  sockfd - the socket to send the file list to.
@@ -368,12 +359,12 @@ void GetFileList(char *dirList, int arrLen)
  * ***************************************************************/
 void SendFileToServer(int sockfd, char *transferFileName)
 {
-	printf("in here: %s\n", transferFileName);
 	FILE * transferFilePointer;
 	transferFilePointer = fopen(transferFileName, "r+");
+	
 	int fd = fileno(transferFilePointer);
-	printf("in here: %d\n", fd);
 	SendFileToClient(sockfd, fd);
+	
 	fclose(transferFilePointer);
 }
 
@@ -604,13 +595,11 @@ void SendFileToClient(int socket, int tempFilePointer)
 		fprintf(stderr, "ERROR: File temp received not found on server.");
 		exit(1);
 	}
-
-		printf("sending....");
+	
 	bzero(sendBuffer, LENGTH);
 	int readSize;
 	while ((readSize = read(tempFilePointer, sendBuffer, LENGTH)) > 0)
 	{
-		printf("sending....");
 		if (send(socket, sendBuffer, readSize, 0) < 0)
 		{
 			// fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
@@ -620,421 +609,6 @@ void SendFileToClient(int socket, int tempFilePointer)
 		bzero(sendBuffer, LENGTH);
 	}
 	// printf("Ok sent to client!\n"); // For debugging only
-}
-
-// -----------------------------------------------------------------------------
-
-/**************************************************************
- * * Entry:
- * *  plainTextString - the plaintext string
- * *	plainTextSize - the plaintext size 
- * *	keyTextString - the key string
- * *	keyTextSize - the key size
- * *	cipherText - the ciper text, returned by ref
- * *
- * * Exit:
- * *  n/a
- * *
- * * Purpose:
- * * 	Gets the cipher text from the given plaintext and key
- * *
- * ***************************************************************/
-void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText)
-{
-	int i;
-	char currEncChar;
-	int currEncCharNumber;
-	int currPlainTextNumber;
-	int currKeyTextNumber;
-	for (i = 0; i < plainTextSize; i++)
-	{
-		// Get the number mappings
-		currPlainTextNumber = GetCharToNumberMapping(plainTextString[i]);
-		currKeyTextNumber = GetCharToNumberMapping(keyTextString[i]);
-
-		// Get the number after encyption
-		currEncCharNumber = (currPlainTextNumber + currKeyTextNumber) % NUMBER_ALLOWED_CHARS;
-
-		// Get the character from the encryption number
-		currEncChar = GetNumberToCharMapping(currEncCharNumber);
-
-		cipherText[i] = currEncChar;
-		// For debugging
-		// printf("current enc number : %d\n", currEncCharNumber);
-		// printf("current character : %c\n", currEncChar);
-	}
-}
-
-/**************************************************************
- * * Entry:
- * *  number - an int number 
- * *
- * * Exit:
- * *  Returns the character that is mapped to the number. Returns 
- * *	'e' if it is an unsupported number.
- * *
- * * Purpose:
- * * 	Gets the character for the specified number. The number range
- * *	is between 0 and 27, inclusive.
- * *
- * ***************************************************************/
-char GetNumberToCharMapping(int number)
-{
-	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
-
-	// Return if the number is out of bounds
-	if (number < 0 || 27 < number)
-	{
-		// Lower case 'e' means that there was an invalid number
-		return 'e';
-	}
-
-	return possibleChars[number];
-}
-
-/**************************************************************
- * * Entry:
- * *  character - a character
- * *
- * * Exit:
- * *  Returns the number that is mapped to the character. Returns 
- * *	-1 if it is an invalid character.
- * *
- * * Purpose:
- * * 	Gets the number that maps to the specified character
- * *
- * ***************************************************************/
-int GetCharToNumberMapping(char character)
-{
-	static const char possibleChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
-
-	int i;
-	for (i = 0; i < NUMBER_ALLOWED_CHARS; i++)
-	{
-		if (character == possibleChars[i])
-		{
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-/**************************************************************
- * * Entry:
- * *  keyTextString - the key string
- * * 	keyTextSize	- the size of the key string
- * *	filePointer - the file containing the key string
- * *
- * * Exit:
- * *  n/a
- * *
- * * Purpose:
- * * 	Saves the key from the file into the specified string.
- * *
- * ***************************************************************/
-void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer)
-{
-	char readBuffer[LENGTH];
-	int i;
-	int fileTracker = 0;
-	int stringTracker = 0;
-	int foundFirstSemiColon = 0;
-
-	// Set file pointer to the start of the file
-	if (fseek(filePointer, 0, SEEK_SET) == -1)
-	{
-		printf("Received file pointer reset failed\n");
-	}
-
-	// Count the number of characters
-	bzero(readBuffer, LENGTH);
-	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
-	{
-		// Loop through the buffer to count characters
-		for (i = 0; i < LENGTH; i++)
-		{
-			// Check if we found the first semicolon
-			if (!foundFirstSemiColon && readBuffer[i] == ';')
-			{
-				foundFirstSemiColon = 1;
-				continue;
-			}
-
-			if (foundFirstSemiColon)
-			{
-				keyTextString[stringTracker] = readBuffer[i]; // Copy the file contents to the string
-				stringTracker++;
-				fileTracker++;
-			}
-
-			// Exit loop if we reached the end of the key length
-			if (fileTracker == (keyTextSize))
-			{
-				break;
-			}
-
-		}
-		bzero(readBuffer, LENGTH);
-	}
-}
-
-/**************************************************************
- * * Entry:
- * *  plainTextString - the plaintext string
- * * 	plainTextSize	- the size of the plaintext string
- * *	filePointer - the file containing the plaintext string
- * *
- * * Exit:
- * *  n/a
- * *
- * * Purpose:
- * * 	Saves the plaintext from the file into the specified string.
- * *
- * ***************************************************************/
-void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer)
-{
-	char readBuffer[LENGTH];
-	int i;
-	int fileTracker = 0;
-	int stringTracker = 0;
-
-	// Set file pointer to the start of the file
-	if (fseek(filePointer, 0, SEEK_SET) == -1)
-	{
-		printf("Received file pointer reset failed\n");
-	}
-
-	// Count the number of characters
-	bzero(readBuffer, LENGTH);
-	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
-	{
-		// Loop through the buffer to count characters
-		for (i = 0; i < LENGTH; i++)
-		{
-			// Exit loop if we reached the end of the plain text portion of the file
-			if (fileTracker == (plainTextSize))
-			{
-				break;
-			}
-
-			plainTextString[stringTracker] = readBuffer[i]; // Copy the file contents to the string
-			stringTracker++;
-			fileTracker++;
-		}
-		bzero(readBuffer, LENGTH);
-	}
-}
-
-/**************************************************************
- * * Entry:
- * *  filePointer - The file pointer to the file containing the 
- * *								plaintext and key, semi-colon delimited.
- * *
- * * Exit:
- * *  Returns the key size as an int.
- * *
- * * Purpose:
- * * 	Gets the key size from the file containing both the 
- * *	plaintext and key.
- * *
- * ***************************************************************/
-int GetSizeOfKeyText(FILE *filePointer)
-{
-	char readBuffer[LENGTH];
-	int i;
-	int keyTextSize = 0;
-	int foundFirstSemiColon = 0;
-	int foundLastSemiColon = 0;
-
-	// Set file pointer to the start of the file
-	if (fseek(filePointer, 0, SEEK_SET) == -1)
-	{
-		printf("Received file pointer reset failed\n");
-	}
-
-	// Count the number of characters
-	bzero(readBuffer, LENGTH);
-	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
-	{
-		// Loop through the buffer to count characters
-		for (i = 0; i < LENGTH; i++)
-		{
-			// Found the first semi-colon delimiter.
-			if ((foundFirstSemiColon == 0) && readBuffer[i] == ';')
-			{
-				foundFirstSemiColon = 1;
-				continue;
-			}
-
-			// Count the characters after the first semi-colon
-			if (foundFirstSemiColon)
-			{
-				// Found the file end semicolon. Exit.
-				if (readBuffer[i] == ';')
-				{
-					foundLastSemiColon = 1;
-					break;
-				}
-
-				keyTextSize++;
-			}
-		}
-		bzero(readBuffer, LENGTH);
-
-		if (foundLastSemiColon)
-		{
-			// Found the last semi-colon, exit out of the loop
-			break;
-		}
-	}
-
-	return keyTextSize;
-}
-
-/**************************************************************
- * * Entry:
- * *  filePointer - The file pointer to the file containing the 
- * *								plaintext and key, semi-colon delimited.
- * *
- * * Exit:
- * *  Returns the plaintext size as an int.
- * *
- * * Purpose:
- * * 	Gets the plaintext size from the file containing both the 
- * *	plaintext and key.
- * *
- * ***************************************************************/
-int GetSizeOfPlaintext(FILE *filePointer)
-{
-	char readBuffer[LENGTH];
-	int i;
-	int fileSize = 0;
-	int foundFirstSemiColon = 0;
-
-	// Set file pointer to the start of the file
-	if (fseek(filePointer, 0, SEEK_SET) == -1)
-	{
-		printf("Received file pointer reset failed\n");
-	}
-
-	// Count the number of characters
-	bzero(readBuffer, LENGTH);
-	while (fread(readBuffer, sizeof(char), LENGTH, filePointer) > 0)
-	{
-		// Loop through the buffer to count characters
-		for (i = 0; i < LENGTH; i++)
-		{
-			// Found the semi-colon delimiter. Break from loop
-			if (readBuffer[i] == ';')
-			{
-				foundFirstSemiColon = 1;
-				break;
-			}
-
-			fileSize++; // Keep track of the file size
-		}
-		bzero(readBuffer, LENGTH);
-
-		if (foundFirstSemiColon)
-		{
-			// Found the delimiter. Break out of the loop
-			break;
-		}
-	}
-
-	return fileSize;
-}
-
-
-/**************************************************************
- * * Entry:
- * *  socket - the file desc for the socket
- * *	tempFilePointer - the file desc for the temp file
- * *
- * * Exit:
- * *  n/a
- * *
- * * Purpose:
- * * 	Gets the file from the client and puts it into the temp file.
- * *
- * ***************************************************************/
-void ReceiveClientFile(int socket, FILE *tempFilePointer)
-{
-	char receiveBuffer[LENGTH]; // Receiver buffer
-	bzero(receiveBuffer, LENGTH); // Clear out the buffer
-
-	// Loop the receiver until all file data is received
-	int bytesReceived = 0;
-	while ((bytesReceived = recv(socket, receiveBuffer, LENGTH, 0)) > 0)
-	{
-		int bytesWrittenToFile = fwrite(receiveBuffer, sizeof(char), bytesReceived, tempFilePointer);
-		if (bytesWrittenToFile < bytesReceived)
-		{
-			printf("[otp_enc_d] File write failed on server.\n");
-		}
-		bzero(receiveBuffer, LENGTH);
-		if (bytesReceived == 0 || bytesReceived != 512)
-		{
-			break;
-		}
-	}
-	if (bytesReceived < 0)
-	{
-		if (errno == EAGAIN)
-		{
-			printf("recv() timed out.\n");
-		}
-		else
-		{
-			fprintf(stderr, "recv() failed due to errno = %d\n", errno);
-			exit(1);
-		}
-	}
-	// printf("Ok received from client!\n"); // For debugging only
-}
-
-/**************************************************************
- * * Entry:
- * *  N/a
- * *
- * * Exit:
- * *  Returns the temp file descriptor
- * *
- * * Purpose:
- * * 	Gets the temp file descriptor. This temp file will clean it  
- * *  self up at the program end.
- * *
- * ***************************************************************/
-int GetTempFD()
-{
-	char tempFileNameBuffer[32];
-	char buffer[24];
-	int filedes;
-
-	// Zero out the buffers
-	bzero(tempFileNameBuffer, sizeof(tempFileNameBuffer));
-	bzero(buffer, sizeof(buffer));
-
-	// Set up temp template
-	strncpy(tempFileNameBuffer, "/tmp/myTmpFile-XXXXXX", 21);
-	// strncpy(buffer, "Hello World", 11); // Need for test only
-
-	errno = 0;
-	// Create the temporary file, this function will replace the 'X's
-	filedes = mkstemp(tempFileNameBuffer);
-
-	// Call unlink so that whenever the file is closed or the program exits
-	// the temporary file is deleted
-	unlink(tempFileNameBuffer);
-
-	if (filedes < 1)
-	{
-		printf("\n Creation of temp file failed with error [%s]\n", strerror(errno));
-		return 1;
-	}
-
-	return filedes;
 }
 
 /**************************************************************
@@ -1057,7 +631,7 @@ void AddNewLineToEndOfFile(FILE *filePointer)
 	{
 		printf("Received file pointer reset failed\n");
 	}
-
+	
 	// Write the newline char to the end of the file
 	fwrite(newlineBuffer, sizeof(char), 1, filePointer);
 

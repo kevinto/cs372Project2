@@ -56,19 +56,13 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     dataPort = ""
     
     def handle(self):
-        # self.request is the TCP socket connected to the client
-        self.data = self.request.recv(8024).strip()
-        
+        # Note: self.request is the TCP socket connected to the client
         if self.action == "-l":
-            # self.data = self.request.recv(1024).strip()
+            self.data = self.request.recv(1024).strip()
             self.outputDirList()
         else:
-            print "receiving data..."
-            #implement the long file recieve below
-            print self.data
-        
-        # print self.data
-        # print self.action
+            self.data = self.receiveClientFile()
+            self.saveTransferedFile()
     
     def outputDirList(self):
         strLen = len(self.data)
@@ -83,6 +77,47 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         
         for i in range(1, len(dirList)):
             print dirList[i]
+    
+    def receiveClientFile(self):
+        # self.data = self.request.recv(1024).strip()
+        
+        # Set socket to non-blocking. This enables the while loop below
+        # to keep calling recv to monitor for any data received. This fixes
+        # the problem where we are only receiving partial messages from the 
+        # server. We will only stop receiving when we receive a null terminator.
+        self.request.setblocking(0)
+        
+        data=''
+        foundNull = False 
+        total_data=[]
+    
+        while 1:
+            # Only exit loop if there is data and we found a null terminator
+            if total_data and foundNull:
+                break
+             
+            try:
+                data = self.request.recv(8192)
+                if data:
+                    # Found data, append to array
+                    total_data.append(data)
+    
+                    # Check for null termination
+                    if '\n' in data:
+                        foundNull = True
+    
+                # Check if connection is terminated from client end
+                # Reference: http://stackoverflow.com/questions/5686490/detect-socket-hangup-without-sending-or-receiving
+                if len(data) == 0:
+                    return "\quit\n"
+            except:
+                pass
+    
+        # Return string constructed from data array 
+        return ''.join(total_data)
+    
+    def saveTransferedFile(self):
+        print self.data
         
 # Purpose: Set up data connection to server
 # Params:
