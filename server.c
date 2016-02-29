@@ -285,18 +285,14 @@ void ProcessConnection(int commandSocket)
  * ***************************************************************/
 void SendFileListToServer(int sockfd)
 {
-	char sendBuffer[LENGTH];
-	bzero(sendBuffer, LENGTH);
-	strncpy(sendBuffer, "otp_enc", LENGTH);
-
 	char fileList[FILELISTLENGTH];
 	bzero(fileList, FILELISTLENGTH);
 	GetFileList(fileList, FILELISTLENGTH);
 	
-	int sendSize = 7;
-	if (send(sockfd, sendBuffer, sendSize, 0) < 0)
+	int sendSize = FILELISTLENGTH;
+	if (send(sockfd, fileList, sendSize, 0) < 0)
 	{
-		printf("Error: Failed to send initial handshake.\n");
+		printf("Error: Failed to send directory list.\n");
 	}
 }
 
