@@ -165,10 +165,6 @@ int main (int argc, char *argv[])
 			printf("Connection from %s\n", he->h_name);
 		}
 
-		// Remove THIS
-		// close(sockfd);
-		// exit(1);
-
 		// Create child process to handle processing multiple connections
 		number_children++; // Keep track of number of open children
 		pid = fork();

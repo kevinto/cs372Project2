@@ -54,6 +54,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     """
     action = ""
     dataPort = ""
+    transFileName = ""
     
     def handle(self):
         # Note: self.request is the TCP socket connected to the client
@@ -63,6 +64,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         else:
             self.data = self.receiveClientFile()
             self.saveTransferedFile()
+            print "File transfer complete."
     
     def outputDirList(self):
         strLen = len(self.data)
@@ -79,7 +81,8 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
             print dirList[i]
     
     def receiveClientFile(self):
-        # self.data = self.request.recv(1024).strip()
+        ftServerHostName = socket.gethostbyaddr(self.client_address[0])[0]
+        print "Receiving \"%s\" from %s:%d" % (self.transFileName, ftServerHostName, self.dataPort)
         
         # Set socket to non-blocking. This enables the while loop below
         # to keep calling recv to monitor for any data received. This fixes
@@ -117,7 +120,11 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         return ''.join(total_data)
     
     def saveTransferedFile(self):
-        print self.data
+        saveFile = open(self.transFileName, "w")
+        saveFile.write(self.data)
+        saveFile.close()
+        
+        # print self.data
         
 # Purpose: Set up data connection to server
 # Params:
@@ -127,6 +134,7 @@ def setupDataConnection(argv):
     # Make sure the handler knows what command we are running
     MyTCPHandler.action = argv[3]
     MyTCPHandler.dataPort = GetDataPort(argv)
+    MyTCPHandler.transFileName = argv[4]
     
     HOST, PORT = argv[1], GetDataPort(argv)
     dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
@@ -140,7 +148,6 @@ def makeRequest(s, argv):
     sendString = GenerateServerCommand(argv);
     
     try:
-        print "Sending: " + sendString 
         s.send(sendString)
     except:
         print "Error: Server disconnected..."
