@@ -136,7 +136,7 @@ def setupDataConnection(argv):
     MyTCPHandler.dataPort = GetDataPort(argv)
     MyTCPHandler.transFileName = argv[4]
     
-    HOST, PORT = argv[1], GetDataPort(argv)
+    HOST, PORT = "localhost", GetDataPort(argv)
     dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
     return dataSocket
 

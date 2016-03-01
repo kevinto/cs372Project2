@@ -39,18 +39,11 @@
 // Global variable to track number of children
 int number_children = 0;
 
-void ProcessConnection(int socket);
+void ProcessConnection(int commandSocket, char *clientHostName);
 int GetTempFD();
 void ReceiveClientFile(int socket, FILE *tempFilePointer);
 void SendFileToClient(int socket, int tempFilePointer);
 void AddNewLineToEndOfFile(FILE *filePointer);
-int GetSizeOfPlaintext(FILE *filePointer);
-int GetSizeOfKeyText(FILE *filePointer);
-void SavePlainTextToString(char *plainTextString, int plainTextSize, FILE *filePointer);
-void SaveKeyTextToString(char *keyTextString, int keyTextSize, FILE *filePointer);
-void EncyptText(char *plainTextString, int plainTextSize, char *keyTextString, int keyTextSize, char *cipherText);
-int GetCharToNumberMapping(char character);
-char GetNumberToCharMapping(int number);
 void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort, char *clientHostName);
 void SendClientHandshakeResponse(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
@@ -95,6 +88,8 @@ int main (int argc, char *argv[])
 	struct sockaddr_in addr_remote; // server addr
 	int portNumber = atoi(argv[1]);
 	struct sigaction sa;
+	char cHostName[BUFFERLENGTH];
+	bzero(cHostName, BUFFERLENGTH);	
 
 	// Get the socket file descriptor
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1 )
@@ -162,7 +157,8 @@ int main (int argc, char *argv[])
 			struct in_addr ipv4addr;
 			inet_pton(AF_INET, inet_ntoa(addr_remote.sin_addr), &ipv4addr);
 			he = gethostbyaddr(&ipv4addr, sizeof ipv4addr, AF_INET);
-			printf("Connection from %s\n", he->h_name);
+			strncpy(cHostName, he->h_name, BUFFERLENGTH);
+			printf("Connection from %s\n", cHostName);
 		}
 
 		// Create child process to handle processing multiple connections
@@ -178,7 +174,7 @@ int main (int argc, char *argv[])
 		{
 			// This is the client process
 			close(sockfd);
-			ProcessConnection(newsockfd);
+			ProcessConnection(newsockfd, cHostName);
 			exit(0);
 		}
 		else
@@ -191,7 +187,7 @@ int main (int argc, char *argv[])
 /**************************************************************
  * * Entry:
  * *  socket - the socket file descriptor
- * *
+ * *  cHostName - the actual client host name
  * * Exit:
  * *  N/a
  * *
@@ -200,14 +196,14 @@ int main (int argc, char *argv[])
  * *  server processing of the client request.
  * *
  * ***************************************************************/
-void ProcessConnection(int commandSocket)
+void ProcessConnection(int commandSocket, char *cHostName)
 {
 	int dataPort = -1;
 	char clientCommand[BUFFERLENGTH];
 	bzero(clientCommand, BUFFERLENGTH);
 	char transferFileName[BUFFERLENGTH];
 	bzero(transferFileName, BUFFERLENGTH);
-	char clientHostName[BUFFERLENGTH];
+	char clientHostName[BUFFERLENGTH]; // Note: this variable is the ftserver hostname
 	bzero(clientHostName, BUFFERLENGTH);
 	ReceiveClientCommand(commandSocket, clientCommand, transferFileName, &dataPort, clientHostName);
 	
@@ -227,7 +223,7 @@ void ProcessConnection(int commandSocket)
 	// Fill the socket address struct   
 	remote_addr.sin_family = AF_INET;
 	remote_addr.sin_port = htons(dataPort);
-	inet_pton(AF_INET, clientHostName, &remote_addr.sin_addr);
+	inet_pton(AF_INET, cHostName, &remote_addr.sin_addr);
 	bzero(&(remote_addr.sin_zero), 8);
 
 	// Try to connect the remote 
@@ -248,7 +244,7 @@ void ProcessConnection(int commandSocket)
 	}
 	else if (strcmp(clientCommand, "-g") == 0)
 	{
-		printf("Sending \"%s\" to %s:%d\n", transferFileName, clientHostName, dataPort);
+		printf("Sending \"%s\" to %s:%d\n", transferFileName, cHostName, dataPort);
 		SendFileToServer(dataSocket, transferFileName);
 	}
 
