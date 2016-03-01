@@ -52,6 +52,7 @@ void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPor
 void SendFileListToServer(int sockfd);
 void SendFileToServer(int sockfd, char *transferFileName);
 void GetFileList(char *returnArr, int arrLen);
+int hostname_to_ip(char *  , char *);
 
 // Signal handler to clean up zombie processes
 static void wait_for_child(int sig)
@@ -209,6 +210,12 @@ void ProcessConnection(int commandSocket, char *cHostName)
 	
 	OutputServerReqMsg(clientCommand, transferFileName, dataPort);
 	close(commandSocket);
+
+	// New Get addr code	
+	printf("cHostName: %s\n", cHostName);
+	char IP[100];
+	hostname_to_ip(cHostName, IP);
+	printf("cHostName ip: %s\n", IP);
 	
 	int dataSocket;
 	struct sockaddr_in remote_addr;
@@ -219,11 +226,11 @@ void ProcessConnection(int commandSocket, char *cHostName)
 		printf("Error: Failed to obtain socket descriptor.\n");
 		exit(2);
 	}
-
+	
 	// Fill the socket address struct   
 	remote_addr.sin_family = AF_INET;
 	remote_addr.sin_port = htons(dataPort);
-	inet_pton(AF_INET, cHostName, &remote_addr.sin_addr);
+	inet_pton(AF_INET, IP, &remote_addr.sin_addr);
 	bzero(&(remote_addr.sin_zero), 8);
 
 	// Try to connect the remote 
@@ -254,6 +261,45 @@ void ProcessConnection(int commandSocket, char *cHostName)
 	close(dataSocket);
 	printf("Server terminated child\n");
 	exit(0); // Exiting the child process.
+}
+
+/**************************************************************
+ * * Entry:
+ * *  hostname - the host name
+ * *  ip - char array that will hold the ip address
+ * *
+ * * Exit:
+ * *  n/a
+ * *
+ * * Purpose:
+ * * 	Gets the IP from the hostname.
+ * *
+ * * Reference: 
+ * * http://www.binarytides.com/hostname-to-ip-address-c-sockets-linux/
+ * ***************************************************************/
+int hostname_to_ip(char *hostname , char *ip)
+{
+    struct hostent *he;
+    struct in_addr **addr_list;
+    int i;
+    
+    if ((he = gethostbyname(hostname)) == NULL) 
+    {
+        herror("gethostbyname");
+        return 1;
+    }
+ 
+    addr_list = (struct in_addr **) he->h_addr_list;
+    
+    // Iterate through the network info struct to get the IP. 
+    for(i = 0; addr_list[i] != NULL; i++) 
+    {
+        //Return the first one;
+        strcpy(ip ,inet_ntoa(*addr_list[i]));
+        return 0;
+    }
+     
+    return 1;
 }
 
 /**************************************************************
