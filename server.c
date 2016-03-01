@@ -227,7 +227,7 @@ void ProcessConnection(int commandSocket)
 	// Fill the socket address struct   
 	remote_addr.sin_family = AF_INET;
 	remote_addr.sin_port = htons(dataPort);
-	inet_pton(AF_INET, "127.0.0.1", &remote_addr.sin_addr);
+	inet_pton(AF_INET, clientHostName, &remote_addr.sin_addr);
 	bzero(&(remote_addr.sin_zero), 8);
 
 	// Try to connect the remote 
