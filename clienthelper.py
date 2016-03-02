@@ -55,16 +55,25 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     action = ""
     dataPort = ""
     transFileName = ""
+    ftServerHostName = ""
     
     def handle(self):
+        self.ftServerHostName = socket.gethostbyaddr(self.client_address[0])[0]
+        
         # Note: self.request is the TCP socket connected to the client
         if self.action == "-l":
             self.data = self.request.recv(1024).strip()
             self.outputDirList()
         else:
-            self.data = self.receiveClientFile()
-            self.saveTransferedFile()
-            print "File transfer complete."
+            # First command sent through will be a status command. Currently
+            # the only status command is 'e' for error file not found
+            status = self.request.recv(512).strip()
+            if (status == "e"):
+                print "%s:%d says FILE NOT FOUND" % (self.ftServerHostName, self.dataPort)
+            else:
+                self.data = self.receiveClientFile()
+                self.saveTransferedFile()
+                print "File transfer complete."
     
     def outputDirList(self):
         strLen = len(self.data)
@@ -81,8 +90,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
             print dirList[i]
     
     def receiveClientFile(self):
-        ftServerHostName = socket.gethostbyaddr(self.client_address[0])[0]
-        print "Receiving \"%s\" from %s:%d" % (self.transFileName, ftServerHostName, self.dataPort)
+        print "Receiving \"%s\" from %s:%d" % (self.transFileName, self.ftServerHostName, self.dataPort)
         
         # Set socket to non-blocking. This enables the while loop below
         # to keep calling recv to monitor for any data received. This fixes

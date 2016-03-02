@@ -1,3 +1,3 @@
 readme
 
--Remember to mention that we can only transfer unix files.
+- make sure tell this ft client only transfers unix files.

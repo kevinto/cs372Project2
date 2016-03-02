@@ -45,7 +45,7 @@ void ReceiveClientFile(int socket, FILE *tempFilePointer);
 void SendFileToClient(int socket, int tempFilePointer);
 void AddNewLineToEndOfFile(FILE *filePointer);
 void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort, char *clientHostName);
-void SendClientHandshakeResponse(int socket, char *serverResponse);
+void SendFtClientFileStatus(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
 int GetCommaIdx(char *strValue, int strLen, int occurance);
 void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
@@ -211,11 +211,9 @@ void ProcessConnection(int commandSocket, char *cHostName)
 	OutputServerReqMsg(clientCommand, transferFileName, dataPort);
 	close(commandSocket);
 
-	// New Get addr code	
-	printf("cHostName: %s\n", cHostName);
+	// Get IP address from ftclient host name
 	char IP[100];
 	hostname_to_ip(cHostName, IP);
-	printf("cHostName ip: %s\n", IP);
 	
 	int dataSocket;
 	struct sockaddr_in remote_addr;
@@ -251,13 +249,20 @@ void ProcessConnection(int commandSocket, char *cHostName)
 	}
 	else if (strcmp(clientCommand, "-g") == 0)
 	{
-		printf("Sending \"%s\" to %s:%d\n", transferFileName, cHostName, dataPort);
-		SendFileToServer(dataSocket, transferFileName);
+		// Reference: http://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c-cross-platform
+		if(access(transferFileName, F_OK) != -1) 
+		{
+			// File exists
+			SendFtClientFileStatus(dataSocket, "s");
+			printf("Sending \"%s\" to %s:%d\n", transferFileName, cHostName, dataPort);
+			SendFileToServer(dataSocket, transferFileName);
+		} else {
+			// File doesnt exist
+			printf("File not found. Sending error message to %s:%d\n", cHostName, dataPort);
+			SendFtClientFileStatus(dataSocket, "e");
+		}
 	}
 
-	// Receives the server status. We will only send the plain text data if the server is 
-	//	willing to accept it.
-	// ReceiveServerHandshakeConfirm(dataSocket, handshakeResponse);
 	close(dataSocket);
 	printf("Server terminated child\n");
 	exit(0); // Exiting the child process.
@@ -444,7 +449,7 @@ void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPor
  * * 	Sends a response to the client's initial handshake message
  * *
  * ***************************************************************/
-void SendClientHandshakeResponse(int socket, char *serverResponse)
+void SendFtClientFileStatus(int socket, char *serverResponse)
 {
 	char sendBuffer[2]; // Send buffer
 	bzero(sendBuffer, 2);
