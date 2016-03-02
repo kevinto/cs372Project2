@@ -120,7 +120,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 # Check if connection is terminated from client end
                 # Reference: http://stackoverflow.com/questions/5686490/detect-socket-hangup-without-sending-or-receiving
                 if len(data) == 0:
-                    return "\quit\n"
+                    return "Error: You attempted to transfer a non-unix file. Please convert the file to a unix file and resend. Unix files are terminated by a new line character.\n"
             except:
                 pass
     

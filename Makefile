@@ -30,7 +30,7 @@ CXXFLAGS += -D_XOPEN_SOURCE=600
 
 # SRCS is a standard name for the source files.
 # Edit as needed.
-SRC1 = server.c
+SRC1 = ftserver.c
 SRCS = ${SRC1}
 
 # HEADERS is a standard name for the header files.
