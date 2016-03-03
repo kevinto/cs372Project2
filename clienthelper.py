@@ -9,6 +9,7 @@ import sys
 import struct
 import time
 import SocketServer
+import os.path
 
 # Purpose: Close server connection and exit client
 # Params:
@@ -72,6 +73,10 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 print "%s:%d says FILE NOT FOUND" % (self.ftServerHostName, self.dataPort)
             else:
                 self.data = self.receiveClientFile()
+                
+                if (os.path.isfile(self.transFileName)):
+                    print "Warning: File already exists. Overwriting anyways."
+                    
                 self.saveTransferedFile()
                 print "File transfer complete."
     
