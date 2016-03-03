@@ -68,14 +68,18 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         else:
             # First command sent through will be a status command. Currently
             # the only status command is 'e' for error file not found
-            status = self.request.recv(512).strip()
+            status = self.request.recv(1).strip()
             if (status == "e"):
                 print "%s:%d says FILE NOT FOUND" % (self.ftServerHostName, self.dataPort)
             else:
-                self.data = self.receiveClientFile()
-                
                 if (os.path.isfile(self.transFileName)):
+                    # Reference: http://stackoverflow.com/questions/82831/how-to-check-whether-a-file-exists-using-python
                     print "Warning: File already exists. Overwriting anyways."
+                    
+                try:
+                    self.data = self.receiveClientFile()
+                except Exception, e:
+                    print "Error: Something is wrong with receiving the file. Please try again in 5 seconds."
                     
                 self.saveTransferedFile()
                 print "File transfer complete."
@@ -94,6 +98,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         for i in range(1, len(dirList)):
             print dirList[i]
     
+    # Reference: http://stackoverflow.com/questions/27241804/sending-a-file-over-tcp-sockets-in-python
     def receiveClientFile(self):
         print "Receiving \"%s\" from %s:%d" % (self.transFileName, self.ftServerHostName, self.dataPort)
         
@@ -104,30 +109,14 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         self.request.setblocking(0)
         
         data=''
-        foundNull = False 
+        foundNull = False
         total_data=[]
     
-        while 1:
-            # Only exit loop if there is data and we found a null terminator
-            if total_data and foundNull:
-                break
+        data = self.request.recv(100)
+        while data:
              
-            try:
-                data = self.request.recv(8192)
-                if data:
-                    # Found data, append to array
-                    total_data.append(data)
-    
-                    # Check for null termination
-                    if '\n' in data:
-                        foundNull = True
-    
-                # Check if connection is terminated from client end
-                # Reference: http://stackoverflow.com/questions/5686490/detect-socket-hangup-without-sending-or-receiving
-                if len(data) == 0:
-                    return "Error: You attempted to transfer a non-unix file. Please convert the file to a unix file and resend. Unix files are terminated by a new line character.\n"
-            except:
-                pass
+            total_data.append(data)
+            data = self.request.recv(100)
     
         # Return string constructed from data array 
         return ''.join(total_data)
