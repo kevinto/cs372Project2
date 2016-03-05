@@ -17,36 +17,15 @@ import time
 import SocketServer
 import os.path
 
-# Purpose: Close server connection and exit client
+# Purpose: Set up socket to the server
 # Params:
-#		socket: Object that holds the server connection info
-def closeClient(s):
-    try:
-        s.close()
-        sys.exit()
-    except:
-        print "Server disconnected..."
-        sys.exit()
-
-# Purpose: Set up connection to server
-# Params:
-#       argv: string array of parameters passed into clint.py
-# Reference: http://www.bogotobogo.com/python/python_network_programming_server_client.php
-def initCommandSocket(argv):
-    tcpIp = sys.argv[1]
-    tcpPort = int(sys.argv[2]) 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((tcpIp, tcpPort))
-    return s
-
-# Purpose: Set up command connection to server
-# Params:
-#       argv: string array of parameters passed into clint.py
+#       argv: string array of parameters passed into client.py
 # Reference: https://docs.python.org/2/library/socketserver.html 
 def initiateContact(argv):
     tcpIp = sys.argv[1]
     tcpPort = int(sys.argv[2]) 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
     try:
         s.connect((tcpIp, tcpPort))
     except socket.error:
@@ -54,28 +33,30 @@ def initiateContact(argv):
         sys.exit()
     return s
 
-# Handler for the server code to recieve data from ftserver
+# Purpose: Class definition for handler that gets server data through the 
+#          command port.
+# Params:
+#       SocketServer.BaseRequestHandler: Base class where we are modifying
+#                                        the handler to get data from the server
+# Reference: https://docs.python.org/2/library/socketserver.html
 class MyTCPHandler(SocketServer.BaseRequestHandler):
-    """
-    The request handler class for our server.
-
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
     action = ""
     dataPort = ""
     transFileName = ""
     ftServerHostName = ""
     
+    # Override the base class request handler
     def handle(self):
         self.ftServerHostName = socket.gethostbyaddr(self.client_address[0])[0]
         
         # Note: self.request is the TCP socket connected to the client
         if self.action == "-l":
+            # Get dir list from server
             self.data = self.request.recv(1024).strip()
             self.outputDirList()
         else:
+            # Get file from server
+            
             # First command sent through will be a status command. Currently
             # the only status command is 'e' for error file not found
             status = self.request.recv(1).strip()
@@ -88,19 +69,23 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                     
                 try:
                     self.data = self.receiveClientFile()
+                    self.saveTransferedFile()
+                    print "File transfer complete."
                 except Exception, e:
                     print "Error: Something is wrong with receiving the file. Please try again in 5 seconds."
-                    
-                self.saveTransferedFile()
-                print "File transfer complete."
     
+    # Output the directory list to the terminal
     def outputDirList(self):
         strLen = len(self.data)
         cleanDirList = ""
+        
+        # For some reason the '\x00' char appears in the payload. This code 
+        # will clean all that up.
         for char in self.data:
             if char != '\x00':
                 cleanDirList += char
-                
+        
+        # The server response of all the file names are comma delimited 
         dirList = cleanDirList.split(",")
         
         print "Receiving directory structure from %s:%d" % (dirList[0], self.dataPort)
@@ -108,6 +93,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         for i in range(1, len(dirList)):
             print dirList[i]
     
+    # Keeps reading data from the server stream until it encounters null
     # Reference: http://stackoverflow.com/questions/27241804/sending-a-file-over-tcp-sockets-in-python
     def receiveClientFile(self):
         print "Receiving \"%s\" from %s:%d" % (self.transFileName, self.ftServerHostName, self.dataPort)
@@ -118,19 +104,17 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     
         data = self.request.recv(100)
         while data:
-             
             total_data.append(data)
             data = self.request.recv(100)
     
         # Return string constructed from data array 
         return ''.join(total_data)
     
+    # Save file contents to a file on the client folder
     def saveTransferedFile(self):
         saveFile = open(self.transFileName, "w")
         saveFile.write(self.data)
         saveFile.close()
-        
-        # print self.data
         
 # Purpose: Set up data connection to server
 # Params:
@@ -142,7 +126,7 @@ def setupDataConnection(argv):
     MyTCPHandler.dataPort = GetDataPort(argv)
     MyTCPHandler.transFileName = argv[4]
     
-    HOST, PORT = "localhost", GetDataPort(argv)
+    HOST, PORT = argv[1], GetDataPort(argv)
     dataSocket = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
     return dataSocket
 
