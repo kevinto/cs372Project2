@@ -22,14 +22,9 @@ commandSocket = clienthelper.initiateContact(sys.argv)
 # Setup data socket connection
 dataSocket = clienthelper.setupDataConnection(sys.argv)
 
-# serverMessage = ""
-# while True:
 try:
     clienthelper.makeRequest(commandSocket, sys.argv)
     dataSocket.handle_request()
-    
-    # serverMessage = clienthelper.receiveServerMsg(s)
-    # print serverMessage,
     
     # Clean up sockets
     commandSocket.close()
