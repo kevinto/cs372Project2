@@ -47,7 +47,11 @@ def initiateContact(argv):
     tcpIp = sys.argv[1]
     tcpPort = int(sys.argv[2]) 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((tcpIp, tcpPort))
+    try:
+        s.connect((tcpIp, tcpPort))
+    except socket.error:
+        print "Error: Failed to connect. Either host name or command port number is incorrect. Please make sure your values are correct and try again."
+        sys.exit()
     return s
 
 # Handler for the server code to recieve data from ftserver
