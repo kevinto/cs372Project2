@@ -108,13 +108,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     def receiveClientFile(self):
         print "Receiving \"%s\" from %s:%d" % (self.transFileName, self.ftServerHostName, self.dataPort)
         
-        # Set socket to non-blocking. This enables the while loop below
-        # to keep calling recv to monitor for any data received. This fixes
-        # the problem where we are only receiving partial messages from the 
-        # server. We will only stop receiving when we receive a null terminator.
-        self.request.setblocking(0)
-        
-        data=''
+        data = ''
         foundNull = False
         total_data=[]
     
