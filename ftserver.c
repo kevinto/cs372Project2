@@ -264,7 +264,6 @@ void ProcessConnection(int commandSocket, char *cHostName)
 	}
 
 	close(dataSocket);
-	printf("Server terminated child\n");
 	exit(0); // Exiting the child process.
 }
 

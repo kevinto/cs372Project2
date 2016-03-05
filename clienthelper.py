@@ -2,7 +2,13 @@
  Filename: client.py
  Coded by: Kevin To
  Purpose - [CS372 Project 2] - File contains helper methods for the 
-                               client code. 
+                               client code.
+ Sample command: 
+    List server's file directory:
+        python ftclient.py <Host Name> <command port#> -l <data port#>
+    
+    Get a file from the server:
+        python ftclient.py <Host Name> <command port#> -g <file name> <data port#>
 '''
 import socket
 import sys
