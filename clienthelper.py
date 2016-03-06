@@ -68,7 +68,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                     print "Warning: File already exists. Overwriting anyways."
                     
                 try:
-                    self.data = self.receiveClientFile()
+                    self.data = self.receiveFile()
                     self.saveTransferedFile()
                     print "File transfer complete."
                 except Exception, e:
@@ -95,7 +95,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
     
     # Keeps reading data from the server stream until it encounters null
     # Reference: http://stackoverflow.com/questions/27241804/sending-a-file-over-tcp-sockets-in-python
-    def receiveClientFile(self):
+    def receiveFile(self):
         print "Receiving \"%s\" from %s:%d" % (self.transFileName, self.ftServerHostName, self.dataPort)
         
         data = ''

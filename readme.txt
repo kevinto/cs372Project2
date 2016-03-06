@@ -16,7 +16,7 @@ How to compile the server code:
 2. Type: 
 		make 
 
-How to server executable:
+How to run server executable:
 1. Open two terminal windows and SSH into the same flip server. For example, flip1.engr.oregonstate.edu on port 22.
 2. In both terminal windows, navigate to the folder containing the server/client code.
 3. In the first terminal window, run the server code by typing (make sure you compiled the server code):

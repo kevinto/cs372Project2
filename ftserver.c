@@ -39,7 +39,7 @@
 // Global variable to track number of children
 int number_children = 0;
 
-void ProcessConnection(int commandSocket, char *clientHostName);
+void handleRequest(int commandSocket, char *clientHostName);
 void SendFileToClient(int socket, int filePointer);
 void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort, char *clientHostName);
 void SendFtClientFileStatus(int socket, char *serverResponse);
@@ -50,6 +50,7 @@ void SendFileListToServer(int sockfd);
 void SendFileToServer(int sockfd, char *transferFileName);
 void GetFileList(char *returnArr);
 int HostnameToIp(char *hostname, char *ip);
+int startup (int argc, char *argv[]);
 
 /**************************************************************
  * * Entry:
@@ -83,6 +84,24 @@ static void wait_for_child(int sig)
  * *
  * ***************************************************************/
 int main (int argc, char *argv[])
+{
+	return startup(argc, argv);
+}
+
+/**************************************************************
+ * * Entry:
+ * *  argc - the number of arguments passed into this program
+ * *  argv - a pointer to the char array of all the arguments
+ * *         passed into this program
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  Starts up the server code.
+ * *
+ * ***************************************************************/
+int startup (int argc, char *argv[])
 {
 	if (argc < 2)
 	{
@@ -176,7 +195,7 @@ int main (int argc, char *argv[])
 		{
 			// This is the client process
 			close(sockfd);
-			ProcessConnection(newsockfd, cHostName);
+			handleRequest(newsockfd, cHostName);
 			exit(0);
 		}
 		else
@@ -199,7 +218,7 @@ int main (int argc, char *argv[])
  * *  server processing of the client request.
  * *
  * ***************************************************************/
-void ProcessConnection(int commandSocket, char *cHostName)
+void handleRequest(int commandSocket, char *cHostName)
 {
 	int dataPort = -1;
 	char clientCommand[BUFFERLENGTH];
