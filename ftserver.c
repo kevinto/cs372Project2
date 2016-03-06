@@ -40,10 +40,7 @@
 int number_children = 0;
 
 void ProcessConnection(int commandSocket, char *clientHostName);
-int GetTempFD();
-void ReceiveClientFile(int socket, FILE *tempFilePointer);
-void SendFileToClient(int socket, int tempFilePointer);
-void AddNewLineToEndOfFile(FILE *filePointer);
+void SendFileToClient(int socket, int filePointer);
 void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileName, int *dataPort, char *clientHostName);
 void SendFtClientFileStatus(int socket, char *serverResponse);
 int GetNumCommas(char *strValue, int strLen);
@@ -51,10 +48,21 @@ int GetCommaIdx(char *strValue, int strLen, int occurance);
 void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPort);
 void SendFileListToServer(int sockfd);
 void SendFileToServer(int sockfd, char *transferFileName);
-void GetFileList(char *returnArr, int arrLen);
-int hostname_to_ip(char *  , char *);
+void GetFileList(char *returnArr);
+int HostnameToIp(char *hostname, char *ip);
 
-// Signal handler to clean up zombie processes
+/**************************************************************
+ * * Entry:
+ * *  sig - the signal event 
+ * *
+ * * Exit:
+ * *  N/a
+ * *
+ * * Purpose:
+ * *  Signal handler to clean up zombie processes
+ * *
+ * * Reference: http://stackoverflow.com/questions/19461744/make-parent-wait-for-all-child-processes
+ * ***************************************************************/
 static void wait_for_child(int sig)
 {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
@@ -78,12 +86,12 @@ int main (int argc, char *argv[])
 {
 	if (argc < 2)
 	{
-		printf("usage: server <port>\n");
+		printf("usage: ftserver <port>\n");
 		exit(1);
 	}
 	
 	// --------------- Section to setup socket -----------------------
-
+	// Reference: http://www.tutorialspoint.com/unix_sockets/socket_server_example.htm
 	int sockfd, newsockfd, sin_size, pid;
 	struct sockaddr_in addr_local; // client addr
 	struct sockaddr_in addr_remote; // server addr
@@ -98,10 +106,6 @@ int main (int argc, char *argv[])
 		fprintf(stderr, "ERROR: Failed to obtain Socket Descriptor. (errno = %d)\n", errno);
 		exit(1);
 	}
-	else
-	{
-		// printf("[otp_enc_d] Obtaining socket descriptor successfully.\n"); // For debugging only
-	}
 
 	// Fill the client socket address struct
 	addr_local.sin_family = AF_INET; // Protocol Family
@@ -112,12 +116,8 @@ int main (int argc, char *argv[])
 	// Bind a port
 	if ( bind(sockfd, (struct sockaddr*)&addr_local, sizeof(struct sockaddr)) == -1 )
 	{
-		fprintf(stderr, "ERROR: Failed to bind Port. (errno = %d)\n", errno);
+		fprintf(stderr, "ERROR: Failed to bind Port. Please select another port. (errno = %d)\n", errno);
 		exit(1);
-	}
-	else
-	{
-		// printf("[otp_enc_d] Binded tcp port %d in addr 127.0.0.1 sucessfully.\n", portNumber); // For debugging only
 	}
 
 	// Listen to port
@@ -132,6 +132,7 @@ int main (int argc, char *argv[])
 	}
 
 	// Set up the signal handler to clean up zombie children
+	// Reference: http://www.thegeekstuff.com/2012/03/catch-signals-sample-c-code/
 	sa.sa_handler = wait_for_child;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
@@ -189,6 +190,7 @@ int main (int argc, char *argv[])
  * * Entry:
  * *  socket - the socket file descriptor
  * *  cHostName - the actual client host name
+ * *
  * * Exit:
  * *  N/a
  * *
@@ -213,7 +215,7 @@ void ProcessConnection(int commandSocket, char *cHostName)
 
 	// Get IP address from ftclient host name
 	char IP[100];
-	hostname_to_ip(cHostName, IP);
+	HostnameToIp(cHostName, IP);
 	
 	int dataSocket;
 	struct sockaddr_in remote_addr;
@@ -231,15 +233,11 @@ void ProcessConnection(int commandSocket, char *cHostName)
 	inet_pton(AF_INET, IP, &remote_addr.sin_addr);
 	bzero(&(remote_addr.sin_zero), 8);
 
-	// Try to connect the remote 
+	// Try to connect the client data port 
 	if (connect(dataSocket, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) == -1)
 	{
 		printf("Error: could not contact client on port %d\n", dataPort);
 		exit(2);
-	}
-	else
-	{
-		// printf("Connected to server at port %d...ok!\n", dataPort); // For debugging
 	}
 
 	if (strcmp(clientCommand, "-l") == 0)
@@ -281,7 +279,7 @@ void ProcessConnection(int commandSocket, char *cHostName)
  * * Reference: 
  * * http://www.binarytides.com/hostname-to-ip-address-c-sockets-linux/
  * ***************************************************************/
-int hostname_to_ip(char *hostname , char *ip)
+int HostnameToIp(char *hostname , char *ip)
 {
     struct hostent *he;
     struct in_addr **addr_list;
@@ -314,14 +312,14 @@ int hostname_to_ip(char *hostname , char *ip)
  * *  n/a
  * *
  * * Purpose:
- * * 	Sends the client's name to the server.
+ * * 	Sends the server's directory list to the client
  * *
  * ***************************************************************/
 void SendFileListToServer(int sockfd)
 {
 	char fileList[FILELISTLENGTH];
 	bzero(fileList, FILELISTLENGTH);
-	GetFileList(fileList, FILELISTLENGTH);
+	GetFileList(fileList);
 	
 	int sendSize = FILELISTLENGTH;
 	if (send(sockfd, fileList, sendSize, 0) < 0)
@@ -332,20 +330,21 @@ void SendFileListToServer(int sockfd)
 
 /**************************************************************
  * * Entry:
- * *  sockfd - the socket to send the file list to.
+ * *  dirList - output for comma delimited list of file names
  * *
  * * Exit:
  * *  n/a
  * *
  * * Purpose:
- * * 	Sends the client's name to the server.
+ * * 	Generates a comma delimited string of all the file
+ * *    names in the server's directory
  * *
  * * Reference: http://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
  * *
  * ***************************************************************/
-void GetFileList(char *dirList, int arrLen)
+void GetFileList(char *dirList)
 {
-	// Get host name of server to send
+	// Get host name of server to add to the beginning of the list 
     char name[50];
     gethostname(name, 50);
     strcat(dirList, name);
@@ -384,8 +383,6 @@ void GetFileList(char *dirList, int arrLen)
 	// Remove the last comma 
 	int lastCommaIdx = strnlen(dirList, FILELISTLENGTH) - 1;
 	dirList[lastCommaIdx] = 0;
-	
-    // printf("dirList: %s\n", dirList);
 }
 
 /**************************************************************
@@ -396,7 +393,7 @@ void GetFileList(char *dirList, int arrLen)
  * *  n/a
  * *
  * * Purpose:
- * * 	Sends the client's name to the server.
+ * * 	Sends the requested file to the server
  * *
  * ***************************************************************/
 void SendFileToServer(int sockfd, char *transferFileName)
@@ -445,7 +442,7 @@ void OutputServerReqMsg(char *clientCommand, char *transferFileName, int dataPor
  * *  n/a
  * *
  * * Purpose:
- * * 	Sends a response to the client's initial handshake message
+ * * 	Sends the file status to the client.
  * *
  * ***************************************************************/
 void SendFtClientFileStatus(int socket, char *serverResponse)
@@ -516,7 +513,7 @@ void ReceiveClientCommand(int socket, char *clientCommand, char *transferFileNam
 		strncpy(clientHostName, receiveBuffer + commaIdxEnd + 1, BUFFERLENGTH);
 	}
 	
-	// Clean the newline character
+	// Clean the newline character from the client host name
 	int i = 0;
 	char currChar = ' ';
 	while(currChar != 0)
@@ -571,6 +568,7 @@ int GetCommaIdx(char *strValue, int strLen, int occurance)
 			break;
 		}
 		
+		// Exit loop if we are trying to access an out of bounds index
 		if (i >= strLen)
 		{
 			break;
@@ -618,68 +616,33 @@ int GetNumCommas(char *strValue, int strLen)
 /**************************************************************
  * * Entry:
  * *  socket - the file desc for the socket
- * *  tempFilePointer - the file desc for the temp file
+ * *  filePointer - the file desc for the transferring file
  * *
  * * Exit:
  * *  n/a
  * *
  * * Purpose:
- * * 	Sends the contents of the temp file to the client.
+ * * 	Sends a file to the client.
  * *
  * ***************************************************************/
-void SendFileToClient(int socket, int tempFilePointer)
+void SendFileToClient(int socket, int filePointer)
 {
 	char sendBuffer[LENGTH]; // Send buffer
-	// printf("[otp_enc_d] Sending received file to the Client..."); // For debugging only
-	if (tempFilePointer == 0)
+	if (filePointer == 0)
 	{
-		// fprintf(stderr, "ERROR: File %s not found on server. (errno = %d)\n", fs_name, errno);
-		fprintf(stderr, "ERROR: File temp received not found on server.");
+		fprintf(stderr, "ERROR: File not found on server.");
 		exit(1);
 	}
 	
 	bzero(sendBuffer, LENGTH);
 	int readSize;
-	while ((readSize = read(tempFilePointer, sendBuffer, LENGTH)) > 0)
+	while ((readSize = read(filePointer, sendBuffer, LENGTH)) > 0)
 	{
 		if (send(socket, sendBuffer, readSize, 0) < 0)
 		{
-			// fprintf(stderr, "ERROR: Failed to send file %s. (errno = %d)\n", fs_name, errno);
-			fprintf(stderr, "ERROR: Failed to send file temp received.");
+			fprintf(stderr, "ERROR: Failed to send file.");
 			exit(1);
 		}
 		bzero(sendBuffer, LENGTH);
-	}
-	// printf("Ok sent to client!\n"); // For debugging only
-}
-
-/**************************************************************
- * * Entry:
- * *  filePointer - the file pointer to an opened writeable file
- * *
- * * Exit:
- * *  N/a
- * *
- * * Purpose:
- * *  Adds a new line to the end of a file.
- * *
- * ***************************************************************/
-void AddNewLineToEndOfFile(FILE *filePointer)
-{
-	char newlineBuffer[1] = "\n";
-
-	// Set the file pointer to the end of the file
-	if (fseek(filePointer, 0, SEEK_END) == -1)
-	{
-		printf("Received file pointer reset failed\n");
-	}
-	
-	// Write the newline char to the end of the file
-	fwrite(newlineBuffer, sizeof(char), 1, filePointer);
-
-	// Set file pointer to the start of the temp file
-	if (fseek(filePointer, 0, SEEK_SET) == -1)
-	{
-		printf("Received file pointer reset failed\n");
 	}
 }
